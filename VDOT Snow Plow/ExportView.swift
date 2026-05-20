@@ -30,7 +30,7 @@ struct ExportView: View {
                         let e = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: endDate)) ?? endDate
                         let interval = DateInterval(start: s, end: e)
 
-                        let rollups = vm.rollups(in: interval)
+                        _ = vm.rollups(in: interval)
 
                         do {
                             // TEMP: call your exporter here
