@@ -14,6 +14,8 @@ struct ExportView: View {
 
     @State private var shareURL: URL? = nil
     @State private var showingShare = false
+    
+    @State private var exportError: String?
 
     var body: some View {
         NavigationStack {
@@ -24,22 +26,43 @@ struct ExportView: View {
                 }
 
                 Section("Export") {
-                    Button("Generate & Share Excel (.xlsx)") {
+                    
+                    Button("Generate Timesheet (.csv)") {
                         let cal = Calendar.current
                         let s = cal.startOfDay(for: startDate)
                         let e = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: endDate)) ?? endDate
                         let interval = DateInterval(start: s, end: e)
-
-                        _ = vm.rollups(in: interval)
-
+                        
                         do {
-                            // TEMP: call your exporter here
-                            let url = try ExcelExporter.buildTimesheetXLSX() // replace if your signature differs
+                            let url = try CSVExporter.buildDetailedCSV(
+                                blocks: vm.blocks,
+                                ownerName: vm.ownerName,
+                                truckNumber: vm.truckNumber,
+                                driverName: vm.driverName,
+                                eventNumber: vm.eventNumber,
+                                siteLabel: vm.siteLabel,
+                                dateRange: interval
+                            )
                             shareURL = url
                             showingShare = true
+                            exportError = nil
                         } catch {
-                            print("XLSX export failed:", error)
+                            exportError = "Export failed: \(error.localizedDescription)"
+                            shareURL = nil
                         }
+                    }
+                    
+                    if let url = shareURL {
+                        ShareLink(item: url) {
+                            Text("Share CSV")
+                                .font(.headline)
+                        }
+                    }
+                    
+                    if let msg = exportError {
+                        Text(msg)
+                            .foregroundStyle(.red)
+                            .font(.caption)
                     }
                 }
 
@@ -50,6 +73,17 @@ struct ExportView: View {
                 }
             }
             .navigationTitle("Export")
+            .sheet(isPresented: $vm.showStormSummary) {
+                StormSummaryView(summary: vm.lastStormSummary) {
+                    do {
+                        let url = try vm.exportLastStormDetailedCSV()
+                        shareURL = url
+                        showingShare = true
+                    } catch {
+                        exportError = error.localizedDescription
+                    }
+                }
+            }
             .sheet(isPresented: $showingShare) {
                 if let url = shareURL {
                     ShareSheet(items: [url])

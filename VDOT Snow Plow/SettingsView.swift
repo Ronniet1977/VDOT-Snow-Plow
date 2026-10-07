@@ -1,38 +1,72 @@
-//
-//  SettingsView.swift
-//  VDOT Snow Plow
-//
-//  Created by Ronald Thayer Jr on 2/11/26.
-//
 import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var vm: TimeViewModel
     
+    // When true, we show a Continue button that saves + exits setup
+    let isSetupMode: Bool
+    let onContinue: (() -> Void)?
+    
+    // Draft fields (do NOT save while typing)
+    @State private var ownerName = ""
+    @State private var truckNumber = ""
+    @State private var driverName = ""
+    @State private var eventNumber = ""
+    @State private var siteLabel = ""
+    
+    private var isDraftComplete: Bool {
+        !ownerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !truckNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !driverName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Timesheet Header Fields") {
-                    TextField("Owner Name", text: $vm.ownerName)
-                    TextField("Truck #", text: $vm.truckNumber)
-                    TextField("Driver Name", text: $vm.driverName)
-                    TextField("Event #", text: $vm.eventNumber)
-                    TextField("Site Label (e.g., LAKE RIDGE)", text: $vm.siteLabel)
-                }
-                
-                Section {
-                    Button("Save Settings") {
-                        vm.save()
-                    }
-                }
-                
-                Section("Note") {
-                    Text("These header fields aren’t in the CSV rows yet. Once you tell me exactly how you want them placed (extra CSV lines, separate file, or a second sheet style), I’ll wire it in.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        Form {
+            Section("Required") {
+                TextField("Owner Name", text: $ownerName)
+                TextField("Truck #", text: $truckNumber)
+                TextField("Driver Name", text: $driverName)
+            }
+            
+            Section("Optional") {
+                TextField("Event #", text: $eventNumber)
+                TextField("Site Label (e.g., LAKE RIDGE)", text: $siteLabel)
+            }
+            
+            Section {
+                Button("Save Settings") {
+                    applyDraftToViewModelAndSave()
                 }
             }
-            .navigationTitle("Settings")
         }
+        .navigationTitle(isSetupMode ? "Required Setup" : "Settings")
+        .onAppear {
+            // Load drafts from saved VM values
+            ownerName = vm.ownerName
+            truckNumber = vm.truckNumber
+            driverName = vm.driverName
+            eventNumber = vm.eventNumber
+            siteLabel = vm.siteLabel
+        }
+        .toolbar {
+            if isSetupMode {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Continue") {
+                        applyDraftToViewModelAndSave()
+                        onContinue?()
+                    }
+                    .disabled(!isDraftComplete)
+                }
+            }
+        }
+    }
+    
+    private func applyDraftToViewModelAndSave() {
+        vm.ownerName = ownerName
+        vm.truckNumber = truckNumber
+        vm.driverName = driverName
+        vm.eventNumber = eventNumber
+        vm.siteLabel = siteLabel
+        vm.save()
     }
 }

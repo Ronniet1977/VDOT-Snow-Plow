@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct VDOTSnowPlow: App {
+    @StateObject private var vm = TimeViewModel()
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(vm)
         }
     }
 }

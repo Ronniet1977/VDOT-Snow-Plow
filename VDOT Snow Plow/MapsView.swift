@@ -7,26 +7,82 @@
 import SwiftUI
 
 struct MapsView: View {
+    
     @EnvironmentObject var vm: TimeViewModel
     
     var body: some View {
+        
         NavigationStack {
+            
             List {
-                ForEach(vm.maps) { item in
+                
+                Section("VDOT") {
+                    
                     NavigationLink {
-                        MapEditView(number: item.number)
-                            .environmentObject(vm)
+                        
+                        VDOTSnowMapNativeView()
+                        
                     } label: {
-                        HStack {
-                            Text("#\(item.number)")
-                                .frame(width: 60, alignment: .leading)
-                            Text(item.label.isEmpty ? "—" : item.label)
-                                .foregroundStyle(item.label.isEmpty ? .secondary : .primary)
+                        
+                        HStack(spacing: 14) {
+                            
+                            Image(systemName: "snowflake")
+                                .font(.title2)
+                                .foregroundStyle(.blue)
+                            
+                            VStack(
+                                alignment: .leading,
+                                spacing: 3
+                            ) {
+                                
+                                Text("VDOT Snow Routes")
+                                    .font(.headline)
+                                
+                                Text("View live VDOT route data")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+                
+                Section("My Maps") {
+                    
+                    ForEach(vm.maps) { item in
+                        
+                        NavigationLink {
+                            
+                            MapEditView(
+                                number: item.number
+                            )
+                            .environmentObject(vm)
+                            
+                        } label: {
+                            
+                            HStack {
+                                
+                                Text("#\(item.number)")
+                                    .frame(
+                                        width: 60,
+                                        alignment: .leading
+                                    )
+                                
+                                Text(
+                                    item.label.isEmpty
+                                    ? "—"
+                                    : item.label
+                                )
+                                .foregroundStyle(
+                                    item.label.isEmpty
+                                    ? .secondary
+                                    : .primary
+                                )
+                            }
                         }
                     }
                 }
             }
-            .navigationTitle("Maps 1–100")
+            .navigationTitle("Maps")
         }
     }
 }

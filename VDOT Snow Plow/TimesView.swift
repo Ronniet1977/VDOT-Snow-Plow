@@ -19,7 +19,7 @@ struct TimesView: View {
 
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    private var rollups: [TimeViewModel.DailyRollup] {
+    private var rollups: [DailyRollup] {
         vm.rollups()
     }
     
@@ -32,6 +32,26 @@ struct TimesView: View {
     var body: some View {
         NavigationStack {
             List {
+                Picker(
+                    "Storm",
+                    selection: Binding<UUID?>(
+                        get: { vm.selectedStormID },
+                        set: { newValue in
+                            vm.selectStorm(newValue)   // ✅ uses your guard + saves
+                        }
+                    )
+                ) {
+                    Text("All Storms").tag(UUID?.none)
+                    
+                    ForEach(vm.storms.sorted(by: { $0.start > $1.start })) { storm in
+                        Text(storm.name).tag(Optional(storm.id))
+                    }
+                    Button("New Storm") { vm.createStorm() }
+                        .disabled(vm.isClockRunning)
+                }
+                .pickerStyle(.menu)
+                .disabled(vm.isClockRunning) // ✅ blocks switching while running
+                
                 Section("Time Clock") {
                     if let active = vm.activeBlock(),
                        let start = active.startDateTime
@@ -100,19 +120,24 @@ struct TimesView: View {
                 }
                 
                 Section {
-                    if vm.blocks.isEmpty {
+                    let listBlocks: [TimeBlock] = {
+                        guard let sid = vm.selectedStormID else { return vm.blocks }
+                        return vm.blocks.filter { $0.stormID == sid }
+                    }()
+                    let sortedBlocks = listBlocks.sorted(by: { ($0.startDateTime ?? .distantPast) > ($1.startDateTime ?? .distantPast) })
+                    
+                    if sortedBlocks.isEmpty {
                         Text("No blocks yet. Tap + to add your first time block.")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(vm.blocks.sorted(by: { ($0.startDateTime ?? .distantPast) > ($1.startDateTime ?? .distantPast) })) { b in
+                        ForEach(sortedBlocks) { b in
                             TimeBlockRow(block: b)
                                 .contentShape(Rectangle())
                                 .onTapGesture { editBlock = b }
                         }
                         .onDelete { idxSet in
-                            let sorted = vm.blocks.sorted(by: { ($0.startDateTime ?? .distantPast) > ($1.startDateTime ?? .distantPast) })
                             for idx in idxSet {
-                                vm.delete(sorted[idx])
+                                vm.delete(sortedBlocks[idx])
                             }
                         }
                     }
@@ -121,15 +146,6 @@ struct TimesView: View {
                 }
             }
             .navigationTitle("Time Blocks")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingAdd = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                }
-            }
             .onReceive(ticker) { now = $0 }
             .confirmationDialog(
                 "End storm and go Off Duty?",

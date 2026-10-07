@@ -20,7 +20,7 @@ struct DayDetailView: View {
             .sorted { ($0.startDateTime ?? .distantPast) < ($1.startDateTime ?? .distantPast) }
     }
     
-    private var rollup: TimeViewModel.DailyRollup? {
+    private var rollup: DailyRollup? {
         vm.rollups().first(where: { Calendar.current.isDate($0.date, inSameDayAs: date) })
     }
     

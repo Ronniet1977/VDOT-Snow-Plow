@@ -7,6 +7,16 @@
 import Foundation
 import Combine
 
+struct Storm: Identifiable, Codable, Equatable {
+    var id: UUID = UUID()
+    var name: String            // e.g. "Feb 12 Storm" or "Storm 4"
+    var start: Date
+    var end: Date? = nil
+    var notes: String = ""
+    
+    var isActive: Bool { end == nil }
+}
+
 enum BlockType: String, Codable, CaseIterable, Identifiable {
     case push = "PUSH"
     case standby = "STAND BY"
@@ -20,6 +30,20 @@ enum EntryMode: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+struct DailyRollup: Identifiable {
+    let id = UUID()
+    
+    let date: Date
+    let pushHours: Double
+    let standbyHours: Double
+    let brokeHours: Double
+    
+    let startTime: Date?
+    let stopTime: Date?
+    
+    var totalHours: Double { pushHours + standbyHours + brokeHours }
+}
+
 struct TimeBlock: Identifiable, Codable, Equatable {
     var id: UUID = UUID()
     
@@ -28,6 +52,7 @@ struct TimeBlock: Identifiable, Codable, Equatable {
     
     var type: BlockType = .push
     var mode: EntryMode = .startEnd
+    var stormID: UUID? = nil
     
     // Start/End mode
     var startDateTime: Date? = nil

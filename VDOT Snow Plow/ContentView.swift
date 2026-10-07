@@ -1,32 +1,36 @@
-//
-//  ContentView.swift
-//  VDOT Snow Plow
-//
-//  Created by Ronald Thayer Jr on 2/11/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var vm = TimeViewModel()
+    @State private var showSetup = false
+    @EnvironmentObject var vm: TimeViewModel
     
     var body: some View {
         TabView {
             TimesView()
-                .environmentObject(vm)
                 .tabItem { Label("Times", systemImage: "clock") }
             
             MapsView()
-                .environmentObject(vm)
                 .tabItem { Label("Maps", systemImage: "map") }
             
             ExportView()
-                .environmentObject(vm)
                 .tabItem { Label("Export", systemImage: "square.and.arrow.up") }
             
-            SettingsView()
-                .environmentObject(vm)
-                .tabItem { Label("Settings", systemImage: "gearshape") }
+            NavigationStack {
+                SettingsView(isSetupMode: false, onContinue: nil)
+            }
+            .tabItem { Label("Settings", systemImage: "gear") }
+        }
+        .onAppear {
+            showSetup = !vm.isSetupComplete
+        }
+        .fullScreenCover(isPresented: $showSetup) {
+            NavigationStack {
+                SettingsView(isSetupMode: true) {
+                    // Continue pressed inside SettingsView
+                    showSetup = false
+                }
+            }
+            .interactiveDismissDisabled(true)
         }
     }
 }

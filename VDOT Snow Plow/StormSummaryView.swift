@@ -32,7 +32,7 @@ struct StormSummaryView: View {
 
                     Spacer()
 
-                    Button("Export Timesheet (.xlsx)") { onExport() }
+                    Button("Export Detailed CSV") { onExport() }
                         .buttonStyle(.borderedProminent)
 
                 } else {
