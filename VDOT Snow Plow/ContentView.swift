@@ -6,8 +6,14 @@ struct ContentView: View {
     
     var body: some View {
         TabView {
-            TimesView()
-                .tabItem { Label("Times", systemImage: "clock") }
+            AdminTimeHomeView()
+                .tabItem {
+                    Label(
+                        "Times",
+                        systemImage:
+                            "clock"
+                    )
+                }
             
             MapsView()
                 .tabItem { Label("Maps", systemImage: "map") }
