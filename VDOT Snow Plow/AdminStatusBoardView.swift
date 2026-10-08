@@ -12,6 +12,22 @@ struct AdminStatusBoardView: View {
         var id: String { rawValue }
     }
     
+    private enum CrewGroupFilter:
+        String,
+        CaseIterable,
+        Identifiable {
+        
+        case all = "All"
+        case plowOnly = "Plow"
+        case nineFoot = "9'"
+        case bigTrucks = "Big"
+        case equipment = "Equip."
+        
+        var id: String {
+            rawValue
+        }
+    }
+    
     @ObservedObject var driverStore:
     CrewDriverStore
     
@@ -32,6 +48,8 @@ struct AdminStatusBoardView: View {
     @State private var searchText = ""
     @State private var statusFilter:
     StatusFilter = .all
+    @State private var crewGroupFilter:
+    CrewGroupFilter = .all
     
     private let timer =
     Timer.publish(
@@ -54,7 +72,8 @@ struct AdminStatusBoardView: View {
             }
     }
     
-    private var filteredActiveDrivers: [CrewDriver] {
+    private var filteredActiveDrivers:
+    [CrewDriver] {
         
         let text =
         searchText.trimmingCharacters(
@@ -65,14 +84,52 @@ struct AdminStatusBoardView: View {
             
             let matchesSearch =
             text.isEmpty ||
-            driver.name.localizedCaseInsensitiveContains(text) ||
-            driver.truckNumber.localizedCaseInsensitiveContains(text)
+            driver.name
+                .localizedCaseInsensitiveContains(
+                    text
+                ) ||
+            driver.truckNumber
+                .localizedCaseInsensitiveContains(
+                    text
+                )
             
             guard matchesSearch else {
                 return false
             }
             
-            let activeBlock =
+            let matchesGroup: Bool
+            
+            switch crewGroupFilter {
+                
+            case .all:
+                matchesGroup = true
+                
+            case .plowOnly:
+                matchesGroup =
+                driver.category ==
+                    .plowOnly
+                
+            case .nineFoot:
+                matchesGroup =
+                driver.category ==
+                    .nineFoot
+                
+            case .bigTrucks:
+                matchesGroup =
+                driver.category ==
+                    .bigTrucks
+                
+            case .equipment:
+                matchesGroup =
+                driver.category ==
+                    .equipment
+            }
+            
+            guard matchesGroup else {
+                return false
+            }
+            
+            let block =
             statusStore.activeBlock(
                 for: driver.id
             )
@@ -83,16 +140,16 @@ struct AdminStatusBoardView: View {
                 return true
                 
             case .push:
-                return activeBlock?.status == .push
+                return block?.status == .push
                 
             case .standby:
-                return activeBlock?.status == .standby
+                return block?.status == .standby
                 
             case .broke:
-                return activeBlock?.status == .broke
+                return block?.status == .broke
                 
             case .offDuty:
-                return activeBlock == nil
+                return block == nil
             }
         }
     }
@@ -266,6 +323,53 @@ struct AdminStatusBoardView: View {
             } header: {
                 
                 Text("Drivers")
+            }
+            
+            Picker(
+                "Crew Group",
+                selection: $crewGroupFilter
+            ) {
+                
+                ForEach(
+                    CrewGroupFilter.allCases
+                ) { group in
+                    
+                    Text(group.rawValue)
+                        .tag(group)
+                }
+            }
+            .pickerStyle(.segmented)
+            
+            if crewGroupFilter != .all {
+                
+                HStack {
+                    
+                    Button("PUSH") {
+                        setFilteredGroupStatus(
+                            .push
+                        )
+                    }
+                    
+                    Button("STANDBY") {
+                        setFilteredGroupStatus(
+                            .standby
+                        )
+                    }
+                    
+                    Button("BROKE") {
+                        setFilteredGroupStatus(
+                            .broke
+                        )
+                    }
+                    
+                    Button("OFF DUTY") {
+                        setFilteredGroupOffDuty()
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(
+                    filteredActiveDrivers.isEmpty
+                )
             }
             
             Picker(
@@ -470,6 +574,37 @@ struct AdminStatusBoardView: View {
                         statusStore
                 )
             }
+        }
+    }
+    
+    private func setFilteredGroupStatus(
+        _ status: BlockType
+    ) {
+        
+        guard
+            let stormID =
+                stormStore.activeStormID
+        else {
+            return
+        }
+        
+        for driver in filteredActiveDrivers {
+            
+            statusStore.changeStatus(
+                driverID: driver.id,
+                stormID: stormID,
+                to: status
+            )
+        }
+    }
+    
+    private func setFilteredGroupOffDuty() {
+        
+        for driver in filteredActiveDrivers {
+            
+            statusStore.offDuty(
+                driverID: driver.id
+            )
         }
     }
 }
@@ -681,6 +816,9 @@ private struct DriverStatusCard: View {
                         onPush()
                     }
                     .buttonStyle(.bordered)
+                    .disabled(
+                        hasActiveStorm == false
+                    )
                 }
                 
                 if activeBlock?.status == .standby {
@@ -699,6 +837,9 @@ private struct DriverStatusCard: View {
                         onStandby()
                     }
                     .buttonStyle(.bordered)
+                    .disabled(
+                        hasActiveStorm == false
+                    )
                 }
                 
                 if activeBlock?.status == .broke {
@@ -717,6 +858,9 @@ private struct DriverStatusCard: View {
                         onBroke()
                     }
                     .buttonStyle(.bordered)
+                    .disabled(
+                        hasActiveStorm == false
+                    )
                 }
                 
                 if activeBlock == nil {

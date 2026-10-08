@@ -226,6 +226,27 @@ private struct CrewDriverEditView: View {
         NavigationStack {
             
             Form {
+                Section("Truck / Equipment") {
+                    
+                    TextField(
+                        "Truck Number",
+                        text: $driver.truckNumber
+                    )
+                    
+                    Picker(
+                        "Category",
+                        selection: $driver.category
+                    ) {
+                        
+                        ForEach(
+                            CrewCategory.allCases
+                        ) { category in
+                            
+                            Text(category.rawValue)
+                                .tag(category)
+                        }
+                    }
+                }
                 
                 TextField(
                     "Driver Name",
