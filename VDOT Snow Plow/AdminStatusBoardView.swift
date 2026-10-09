@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import MessageUI
 
 struct AdminStatusBoardView: View {
     private enum StatusFilter: String, CaseIterable, Identifiable {
@@ -19,7 +20,7 @@ struct AdminStatusBoardView: View {
         
         case all = "All"
         case plowOnly = "Plow"
-        case nineFoot = "9'"
+        case littleTrucks = "Little"
         case bigTrucks = "Big"
         case equipment = "Equip."
         
@@ -50,6 +51,23 @@ struct AdminStatusBoardView: View {
     StatusFilter = .all
     @State private var crewGroupFilter:
     CrewGroupFilter = .all
+    
+    @StateObject private var mapAssignmentStore =
+    DriverMapAssignmentStore()
+    
+    @State private var assigningDriver:
+    CrewDriver?
+    
+    @State private var openingMap:
+    MapNumberSelection?
+    @State private var mapCheckMessage:
+    MapCheckMessage?
+    
+    @StateObject private var supervisorStore =
+    SupervisorSettingsStore()
+    
+    private let supervisorPhone =
+    ""
     
     private let timer =
     Timer.publish(
@@ -109,10 +127,10 @@ struct AdminStatusBoardView: View {
                 driver.category ==
                     .plowOnly
                 
-            case .nineFoot:
+            case .littleTrucks:
                 matchesGroup =
                 driver.category ==
-                    .nineFoot
+                    .littleTrucks
                 
             case .bigTrucks:
                 matchesGroup =
@@ -433,6 +451,65 @@ struct AdminStatusBoardView: View {
                         hasActiveStorm:
                             stormStore.activeStormID != nil,
                         
+                        mapAssignments:
+                            stormStore.activeStormID.map { stormID in
+                                
+                                mapAssignmentStore
+                                    .currentAssignments(
+                                        driverID:
+                                            driver.id,
+                                        stormID:
+                                            stormID
+                                    )
+                                
+                            } ?? [],
+                        
+                        onAssignMap: {
+                            
+                            assigningDriver =
+                            driver
+                        },
+                        
+                        onFinishMap: { assignment in
+                            
+                            mapAssignmentStore
+                                .finish(
+                                    assignment
+                                )
+                            
+                            let contacts =
+                            supervisorStore
+                                .supervisors(
+                                    for:
+                                        driver.category
+                                )
+                            
+                            let recipients =
+                            contacts
+                                .map {
+                                    $0.phoneNumber
+                                }
+                                .filter {
+                                    $0.isEmpty == false
+                                }
+                            
+                            mapCheckMessage =
+                            MapCheckMessage(
+                                mapNumber:
+                                    assignment.mapNumber,
+                                recipients:
+                                    recipients
+                            )
+                        },
+                        
+                        onOpenMap: { mapNumber in
+                            
+                            openingMap =
+                            MapNumberSelection(
+                                number: mapNumber
+                            )
+                        },
+                        
                         onPush: {
                             
                             if let stormID =
@@ -575,6 +652,64 @@ struct AdminStatusBoardView: View {
                 )
             }
         }
+        .sheet(
+            item: $openingMap
+        ) { selection in
+            
+            NavigationStack {
+                
+                VDOTSnowMapNativeView(
+                    initialMapNumber:
+                        selection.number
+                )
+            }
+        }
+        .sheet(
+            item: $mapCheckMessage
+        ) { item in
+            
+            if MFMessageComposeViewController
+                .canSendText() {
+                
+                MessageComposer(
+                    recipients:
+                        item.recipients,
+                    
+                    body:
+                        "Can you please go check Map #\(item.mapNumber)?"
+                )
+                
+            } else {
+                
+                ContentUnavailableView(
+                    "Messages Unavailable",
+                    systemImage:
+                        "message.slash",
+                    description:
+                        Text(
+                            "This device cannot send text messages."
+                        )
+                )
+            }
+        }
+        .sheet(
+            item:
+                $assigningDriver
+        ) { driver in
+            
+            if let stormID =
+                stormStore.activeStormID {
+                
+                AssignMapView(
+                    driver:
+                        driver,
+                    stormID:
+                        stormID,
+                    assignmentStore:
+                        mapAssignmentStore
+                )
+            }
+        }
     }
     
     private func setFilteredGroupStatus(
@@ -607,6 +742,23 @@ struct AdminStatusBoardView: View {
             )
         }
     }
+}
+
+private struct MapCheckMessage:
+    Identifiable {
+    
+    let id = UUID()
+    
+    let mapNumber: String
+    let recipients: [String]
+}
+
+private struct MapNumberSelection:
+    Identifiable {
+    
+    let id = UUID()
+    
+    let number: String
 }
 
 private struct NewStormView: View {
@@ -689,6 +841,18 @@ private struct DriverStatusCard: View {
     
     let hasActiveStorm: Bool
     
+    let mapAssignments:
+    [DriverMapAssignment]
+    
+    let onAssignMap:
+    () -> Void
+    
+    let onFinishMap:
+    (DriverMapAssignment) -> Void
+    
+    let onOpenMap:
+    (String) -> Void
+    
     let onPush:
     () -> Void
     
@@ -734,28 +898,19 @@ private struct DriverStatusCard: View {
             HStack {
                 
                 VStack(
-                    alignment:
-                            .leading
+                    alignment: .leading
                 ) {
                     
-                    Text(
-                        driver.name
-                    )
-                    .font(
-                        .headline
-                    )
+                    Text(driver.name)
+                        .font(.headline)
                     
                     Text(
                         driver.truckNumber.isEmpty
                         ? "No Truck"
                         : "Truck \(driver.truckNumber)"
                     )
-                    .font(
-                        .caption
-                    )
-                    .foregroundStyle(
-                        .secondary
-                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
                 
                 Spacer()
@@ -763,38 +918,93 @@ private struct DriverStatusCard: View {
                 if let activeBlock {
                     
                     VStack(
-                        alignment:
-                                .trailing
+                        alignment: .trailing
                     ) {
                         
                         Text(
-                            activeBlock
-                                .status
-                                .rawValue
+                            activeBlock.status.rawValue
                         )
-                        .font(
-                            .headline
-                        )
+                        .font(.headline)
                         
                         Text(
                             "\(elapsedHours, specifier: "%.2f") hrs"
                         )
-                        .font(
-                            .caption
-                        )
-                        .foregroundStyle(
-                            .secondary
-                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     }
                     
                 } else {
                     
-                    Text(
-                        "OFF DUTY"
-                    )
-                    .foregroundStyle(
-                        .secondary
-                    )
+                    Text("OFF DUTY")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            
+            if hasActiveStorm {
+                
+                VStack(
+                    alignment: .leading,
+                    spacing: 8
+                ) {
+                    
+                    HStack {
+                        
+                        if mapAssignments.isEmpty == false {
+                            
+                            Text("Assigned Maps")
+                                .font(.caption.bold())
+                        }
+                        
+                        Spacer()
+                        
+                        Button {
+                            
+                            onAssignMap()
+                            
+                        } label: {
+                            
+                            Label(
+                                "Assign Map",
+                                systemImage:
+                                    "map.badge.plus"
+                            )
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    
+                    ForEach(
+                        mapAssignments
+                    ) { assignment in
+                        
+                        HStack {
+                            
+                            Button {
+                                
+                                onOpenMap(
+                                    assignment.mapNumber
+                                )
+                                
+                            } label: {
+                                
+                                Label(
+                                    "Map \(assignment.mapNumber)",
+                                    systemImage: "map"
+                                )
+                                .font(.subheadline)
+                            }
+                            .buttonStyle(.plain)
+                            
+                            Spacer()
+                            
+                            Button("Finish") {
+                                
+                                onFinishMap(
+                                    assignment
+                                )
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
                 }
             }
             

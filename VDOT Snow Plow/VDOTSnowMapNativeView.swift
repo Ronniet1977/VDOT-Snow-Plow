@@ -29,6 +29,22 @@ struct VDOTSnowMapNativeView: View {
     @State private var loadedMap =
     ""
     
+    let initialMapNumber: String?
+    
+    init(
+        initialMapNumber: String? = nil
+    ) {
+        
+        self.initialMapNumber =
+        initialMapNumber
+        
+        _selectedMap =
+        State(
+            initialValue:
+                initialMapNumber ?? ""
+        )
+    }
+    
     private let ahqName =
     "Lake Ridge"
     
@@ -276,6 +292,11 @@ struct VDOTSnowMapNativeView: View {
         .task {
             
             await loadMapNumbers()
+            
+            if initialMapNumber != nil {
+                
+                await loadRoutes()
+            }
         }
         .onReceive(
             NotificationCenter.default.publisher(

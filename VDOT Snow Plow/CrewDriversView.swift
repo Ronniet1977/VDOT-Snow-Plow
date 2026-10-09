@@ -148,7 +148,9 @@ struct CrewDriversView: View {
                     name:
                         driver.name,
                     truckNumber:
-                        driver.truckNumber
+                        driver.truckNumber,
+                    category:
+                        driver.category
                 )
             }
         }
@@ -242,7 +244,7 @@ private struct CrewDriverEditView: View {
                             CrewCategory.allCases
                         ) { category in
                             
-                            Text(category.rawValue)
+                            Text(category.displayName)
                                 .tag(category)
                         }
                     }

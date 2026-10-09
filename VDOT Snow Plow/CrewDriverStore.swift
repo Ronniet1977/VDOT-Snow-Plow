@@ -35,13 +35,15 @@ final class CrewDriverStore: ObservableObject {
     
     func add(
         name: String,
-        truckNumber: String
+        truckNumber: String,
+        category: CrewCategory
     ) {
         
         let driver =
         CrewDriver(
             name: name,
-            truckNumber: truckNumber
+            truckNumber: truckNumber,
+            category: category
         )
         
         drivers.append(driver)

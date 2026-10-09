@@ -3,6 +3,9 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var vm: TimeViewModel
     
+    @StateObject private var supervisorStore =
+    SupervisorSettingsStore()
+    
     // When true, we show a Continue button that saves + exits setup
     let isSetupMode: Bool
     let onContinue: (() -> Void)?
@@ -28,9 +31,23 @@ struct SettingsView: View {
                 TextField("Driver Name", text: $driverName)
             }
             
-            Section("Optional") {
-                TextField("Event #", text: $eventNumber)
-                TextField("Site Label (e.g., LAKE RIDGE)", text: $siteLabel)
+            Section("Administration") {
+                
+                NavigationLink {
+                    
+                    SupervisorSettingsView(
+                        store:
+                            supervisorStore
+                    )
+                    
+                } label: {
+                    
+                    Label(
+                        "Supervisors",
+                        systemImage:
+                            "person.2.fill"
+                    )
+                }
             }
             
             Section {

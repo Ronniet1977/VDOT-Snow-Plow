@@ -17,6 +17,53 @@ struct Storm: Identifiable, Codable, Equatable {
     var isActive: Bool { end == nil }
 }
 
+struct SupervisorContact:
+    Identifiable,
+    Codable,
+    Equatable {
+    
+    var id = UUID()
+    
+    var name: String
+    var phoneNumber: String
+}
+
+struct SupervisorSettings:
+    Codable,
+    Equatable {
+    
+    var plowOnly:
+    [SupervisorContact] = []
+    
+    var littleTrucks:
+    [SupervisorContact] = []
+    
+    var bigTrucks:
+    [SupervisorContact] = []
+    
+    var equipment:
+    [SupervisorContact] = []
+}
+
+struct DriverMapAssignment: Identifiable, Codable, Equatable {
+    
+    var id = UUID()
+    
+    var driverID: UUID
+    var stormID: UUID
+    
+    var mapNumber: String
+    
+    var assignedAt = Date()
+    var completedAt: Date?
+    
+    var notes = ""
+    
+    var isCompleted: Bool {
+        completedAt != nil
+    }
+}
+
 enum BlockType: String, Codable, CaseIterable, Identifiable {
     case push = "PUSH"
     case standby = "STAND BY"
