@@ -65,6 +65,21 @@ final class CloudAppUserService {
                 value:
                     user.isActive
             )
+        
+        record["category"] =
+            user.category?.rawValue
+
+        record["driverID"] =
+            user.driverID?.uuidString
+
+        record["appleUserID"] =
+            user.appleUserID
+
+        record["companyName"] =
+            user.companyName
+
+        record["truckVINLast4"] =
+            user.truckVINLast4
 
         try await database.save(
             record
@@ -140,12 +155,32 @@ final class CloudAppUserService {
                 as? String
 
             let category =
-                categoryRaw.flatMap {
-                    CrewCategory(
-                        rawValue:
-                            $0
-                    )
-                }
+                (record["category"] as? String)
+                    .flatMap {
+                        CrewCategory(
+                            rawValue: $0
+                        )
+                    }
+
+            let driverID =
+                (record["driverID"] as? String)
+                    .flatMap {
+                        UUID(
+                            uuidString: $0
+                        )
+                    }
+
+            let appleUserID =
+                record["appleUserID"]
+                    as? String
+
+            let companyName =
+                record["companyName"]
+                    as? String
+
+            let truckVINLast4 =
+                record["truckVINLast4"]
+                    as? String
 
             let isActive =
                 (
@@ -156,16 +191,15 @@ final class CloudAppUserService {
 
             users.append(
                 AppUser(
-                    id:
-                        id,
-                    name:
-                        name,
-                    role:
-                        role,
-                    category:
-                        category,
-                    isActive:
-                        isActive
+                    id: id,
+                    name: name,
+                    role: role,
+                    category: category,
+                    driverID: driverID,
+                    appleUserID: appleUserID,
+                    companyName: companyName,
+                    truckVINLast4: truckVINLast4,
+                    isActive: isActive
                 )
             )
         }

@@ -37,18 +37,20 @@ enum AppUserRole:
     }
 }
 
-struct AppUser:
-    Identifiable,
-    Codable,
-    Equatable {
+struct AppUser: Identifiable, Codable, Equatable {
 
     var id = UUID()
 
     var name: String
-
     var role: AppUserRole
 
     var category: CrewCategory?
+
+    var driverID: UUID?
+    var appleUserID: String?
+
+    var companyName: String?
+    var truckVINLast4: String?
 
     var isActive: Bool = true
 }

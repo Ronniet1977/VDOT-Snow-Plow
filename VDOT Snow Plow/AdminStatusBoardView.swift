@@ -33,6 +33,7 @@ struct AdminStatusBoardView: View {
     CrewDriverStore
     
     let canEdit: Bool
+    let supervisorCategory: CrewCategory?
     
     @StateObject private var statusStore =
     DriverStatusStore()
@@ -79,16 +80,23 @@ struct AdminStatusBoardView: View {
     )
     .autoconnect()
     
-    private var activeDrivers:
-    [CrewDriver] {
-        
+    private var activeDrivers: [CrewDriver] {
+
         driverStore.drivers
-            .filter {
-                $0.isActive
+            .filter { driver in
+
+                guard driver.isActive else {
+                    return false
+                }
+
+                if let supervisorCategory {
+                    return driver.category == supervisorCategory
+                }
+
+                return true
             }
             .sorted {
-                $0.name <
-                    $1.name
+                $0.name < $1.name
             }
     }
     
@@ -348,52 +356,55 @@ struct AdminStatusBoardView: View {
                 Text("Drivers")
             }
             
-            Picker(
-                "Crew Group",
-                selection: $crewGroupFilter
-            ) {
-                
-                ForEach(
-                    CrewGroupFilter.allCases
-                ) { group in
-                    
-                    Text(group.rawValue)
-                        .tag(group)
-                }
-            }
-            .pickerStyle(.segmented)
-            
-            if crewGroupFilter != .all &&
-                canEdit {
-                
-                HStack {
-                    
-                    Button("PUSH") {
-                        setFilteredGroupStatus(
-                            .push
-                        )
-                    }
-                    
-                    Button("STANDBY") {
-                        setFilteredGroupStatus(
-                            .standby
-                        )
-                    }
-                    
-                    Button("BROKE") {
-                        setFilteredGroupStatus(
-                            .broke
-                        )
-                    }
-                    
-                    Button("OFF DUTY") {
-                        setFilteredGroupOffDuty()
+            if supervisorCategory == nil {
+
+                Picker(
+                    "Crew Group",
+                    selection: $crewGroupFilter
+                ) {
+
+                    ForEach(
+                        CrewGroupFilter.allCases
+                    ) { group in
+
+                        Text(group.rawValue)
+                            .tag(group)
                     }
                 }
-                .buttonStyle(.bordered)
-                .disabled(
-                    filteredActiveDrivers.isEmpty
-                )
+                .pickerStyle(.segmented)
+
+                if crewGroupFilter != .all &&
+                    canEdit {
+
+                    HStack {
+
+                        Button("PUSH") {
+                            setFilteredGroupStatus(
+                                .push
+                            )
+                        }
+
+                        Button("STANDBY") {
+                            setFilteredGroupStatus(
+                                .standby
+                            )
+                        }
+
+                        Button("BROKE") {
+                            setFilteredGroupStatus(
+                                .broke
+                            )
+                        }
+
+                        Button("OFF DUTY") {
+                            setFilteredGroupOffDuty()
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(
+                        filteredActiveDrivers.isEmpty
+                    )
+                }
             }
             
             Picker(
