@@ -11,6 +11,9 @@ final class CrewDriverStore: ObservableObject {
     private let fileName =
     "CrewDrivers.json"
     
+    private let cloud =
+        CloudDriverService.shared
+    
     init() {
         load()
     }
@@ -55,6 +58,28 @@ final class CrewDriverStore: ObservableObject {
         }
         
         save()
+        
+        Task {
+
+            do {
+
+                try await cloud.saveDriver(
+                    driver
+                )
+
+                print(
+                    "☁️ Driver uploaded:",
+                    driver.name
+                )
+
+            } catch {
+
+                print(
+                    "❌ Driver CloudKit save failed:",
+                    error
+                )
+            }
+        }
     }
     
     func update(
@@ -75,6 +100,28 @@ final class CrewDriverStore: ObservableObject {
         drivers[index] = driver
         
         save()
+        
+        Task {
+
+            do {
+
+                try await cloud.saveDriver(
+                    driver
+                )
+
+                print(
+                    "☁️ Driver updated:",
+                    driver.name
+                )
+
+            } catch {
+
+                print(
+                    "❌ Driver CloudKit update failed:",
+                    error
+                )
+            }
+        }
     }
     
     func delete(
@@ -86,6 +133,28 @@ final class CrewDriverStore: ObservableObject {
         }
         
         save()
+        
+        Task {
+
+            do {
+
+                try await cloud.deleteDriver(
+                    driver
+                )
+
+                print(
+                    "☁️ Driver deleted:",
+                    driver.name
+                )
+
+            } catch {
+
+                print(
+                    "❌ Driver CloudKit delete failed:",
+                    error
+                )
+            }
+        }
     }
     
     func setActive(
@@ -108,6 +177,59 @@ final class CrewDriverStore: ObservableObject {
         active
         
         save()
+    }
+    
+    func syncFromCloud() async {
+
+        do {
+
+            let cloudDrivers =
+                try await cloud.fetchDrivers()
+
+            for cloudDriver in cloudDrivers {
+
+                if let index =
+                    drivers.firstIndex(
+                        where: {
+                            $0.id ==
+                            cloudDriver.id
+                        }
+                    ) {
+
+                    drivers[index] =
+                        cloudDriver
+
+                } else {
+
+                    drivers.append(
+                        cloudDriver
+                    )
+                }
+            }
+
+            drivers.sort {
+                $0.name
+                    .localizedCaseInsensitiveCompare(
+                        $1.name
+                    )
+                ==
+                .orderedAscending
+            }
+
+            save()
+
+            print(
+                "☁️ Drivers merged from CloudKit:",
+                cloudDrivers.count
+            )
+
+        } catch {
+
+            print(
+                "❌ Driver CloudKit fetch failed:",
+                error
+            )
+        }
     }
 }
 

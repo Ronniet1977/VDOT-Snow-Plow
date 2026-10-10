@@ -132,27 +132,32 @@ struct CrewDriversView: View {
             }
         }
         .sheet(
-            isPresented:
-                $showingAdd
+            isPresented: $showingAdd
         ) {
-            
+
             CrewDriverEditView(
-                driver:
-                    CrewDriver(
-                        name: "",
-                        truckNumber: ""
-                    )
+                driver: CrewDriver(
+                    name: "",
+                    truckNumber: "",
+                    category: .plowOnly
+                )
             ) { driver in
-                
+
+                let newDriver =
+                    CrewDriver(
+                        name: driver.name,
+                        truckNumber: driver.truckNumber,
+                        category: driver.category,
+                        isActive: driver.isActive
+                    )
+
                 store.add(
-                    name:
-                        driver.name,
-                    truckNumber:
-                        driver.truckNumber,
-                    category:
-                        driver.category
+                    name: newDriver.name,
+                    truckNumber: newDriver.truckNumber,
+                    category: newDriver.category
                 )
             }
+            .id(showingAdd)
         }
         .sheet(
             item:
@@ -254,12 +259,6 @@ private struct CrewDriverEditView: View {
                     "Driver Name",
                     text:
                         $driver.name
-                )
-                
-                TextField(
-                    "Truck Number",
-                    text:
-                        $driver.truckNumber
                 )
             }
             .navigationTitle(

@@ -4,6 +4,8 @@ struct AdminTimeHomeView: View {
     
     @StateObject private var driverStore =
     CrewDriverStore()
+    @StateObject private var supervisorStore =
+    SupervisorSettingsStore()
     
     var body: some View {
         
@@ -60,6 +62,22 @@ struct AdminTimeHomeView: View {
                         }
                     }
                     
+                    NavigationLink {
+
+                        SupervisorSettingsView(
+                            store:
+                                supervisorStore
+                        )
+
+                    } label: {
+
+                        Label(
+                            "Supervisors",
+                            systemImage:
+                                "person.2.badge.gearshape"
+                        )
+                    }
+                    
                     HStack {
                         
                         Text(
@@ -80,6 +98,14 @@ struct AdminTimeHomeView: View {
             .navigationTitle(
                 "Admin Time"
             )
+            .task {
+
+                await driverStore
+                    .syncFromCloud()
+
+                await supervisorStore
+                    .syncFromCloud()
+            }
         }
     }
 }

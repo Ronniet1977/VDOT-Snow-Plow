@@ -111,47 +111,24 @@ struct SupervisorSettingsView: View {
         at offsets: IndexSet,
         category: CrewCategory
     ) {
-        
-        switch category {
-            
-        case .plowOnly:
-            
-            store.settings
-                .plowOnly
-                .remove(
-                    atOffsets:
-                        offsets
-                )
-            
-        case .littleTrucks:
-            
-            store.settings
-                .littleTrucks
-                .remove(
-                    atOffsets:
-                        offsets
-                )
-            
-        case .bigTrucks:
-            
-            store.settings
-                .bigTrucks
-                .remove(
-                    atOffsets:
-                        offsets
-                )
-            
-        case .equipment:
-            
-            store.settings
-                .equipment
-                .remove(
-                    atOffsets:
-                        offsets
-                )
+
+        let supervisors =
+            store.supervisors(
+                for: category
+            )
+
+        let toDelete =
+            offsets.map {
+                supervisors[$0]
+            }
+
+        for supervisor in toDelete {
+
+            store.deleteSupervisor(
+                supervisor,
+                from: category
+            )
         }
-        
-        store.save()
     }
 }
 
@@ -262,43 +239,11 @@ private struct AddSupervisorView:
                 )
         )
         
-        switch category {
-            
-        case .plowOnly:
-            
-            store.settings
-                .plowOnly
-                .append(
-                    contact
-                )
-            
-        case .littleTrucks:
-            
-            store.settings
-                .littleTrucks
-                .append(
-                    contact
-                )
-            
-        case .bigTrucks:
-            
-            store.settings
-                .bigTrucks
-                .append(
-                    contact
-                )
-            
-        case .equipment:
-            
-            store.settings
-                .equipment
-                .append(
-                    contact
-                )
-        }
-        
-        store.save()
-        
+        store.addSupervisor(
+            contact,
+            to: category
+        )
+
         dismiss()
     }
 }
