@@ -16,7 +16,7 @@ final class CloudDriverService {
 
     private let database =
         CKContainer.default()
-            .privateCloudDatabase
+            .publicCloudDatabase
 
     private init() {}
 
@@ -32,13 +32,26 @@ final class CloudDriverService {
                     driver.id.uuidString
             )
 
-        let record =
-            CKRecord(
-                recordType:
-                    "CrewDriver",
-                recordID:
-                    recordID
-            )
+        let record: CKRecord
+
+        do {
+
+            record =
+                try await database.record(
+                    for: recordID
+                )
+
+        } catch let error as CKError
+            where error.code == .unknownItem {
+
+            record =
+                CKRecord(
+                    recordType:
+                        "CrewDriver",
+                    recordID:
+                        recordID
+                )
+        }
 
         record["name"] =
             driver.name
@@ -50,7 +63,10 @@ final class CloudDriverService {
             driver.category.rawValue
 
         record["isActive"] =
-            driver.isActive
+            NSNumber(
+                value:
+                    driver.isActive
+            )
 
         try await database.save(
             record
@@ -129,8 +145,10 @@ final class CloudDriverService {
                 ?? .plowOnly
 
             let isActive =
-                record["isActive"]
-                as? Bool
+                (
+                    record["isActive"]
+                    as? NSNumber
+                )?.boolValue
                 ?? false
 
             drivers.append(

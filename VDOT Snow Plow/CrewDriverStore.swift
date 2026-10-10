@@ -161,7 +161,7 @@ final class CrewDriverStore: ObservableObject {
         _ driver: CrewDriver,
         active: Bool
     ) {
-        
+
         guard
             let index =
                 drivers.firstIndex(
@@ -172,11 +172,38 @@ final class CrewDriverStore: ObservableObject {
         else {
             return
         }
-        
+
         drivers[index].isActive =
-        active
-        
+            active
+
+        let updatedDriver =
+            drivers[index]
+
         save()
+
+        Task {
+
+            do {
+
+                try await cloud
+                    .saveDriver(
+                        updatedDriver
+                    )
+
+                print(
+                    "☁️ Driver active updated:",
+                    updatedDriver.name,
+                    active
+                )
+
+            } catch {
+
+                print(
+                    "❌ Driver active CloudKit update failed:",
+                    error
+                )
+            }
+        }
     }
     
     func syncFromCloud() async {

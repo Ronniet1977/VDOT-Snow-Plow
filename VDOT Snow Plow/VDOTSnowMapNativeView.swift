@@ -48,6 +48,9 @@ struct VDOTSnowMapNativeView: View {
     private let ahqName =
     "Lake Ridge"
     
+    private let mapNumberCacheKey =
+        "LakeRidgeMapNumbers"
+    
     var body: some View {
         
         VStack(spacing: 0) {
@@ -325,38 +328,74 @@ struct VDOTSnowMapNativeView: View {
     }
     
     private func loadMapNumbers() async {
-        
+
         isLoadingMaps = true
         errorMessage = nil
-        
-        do {
-            
-            mapNumbers =
-            try await
-            VDOTSnowRouteService
-                .shared
-                .fetchDistinctValues(
-                    field: "MAPNUMBER",
-                    whereClause:
-                        "AHQNAME='Lake Ridge'"
+
+        let cached =
+            UserDefaults.standard
+                .stringArray(
+                    forKey:
+                        mapNumberCacheKey
                 )
-            
+            ?? []
+
+        if cached.isEmpty == false {
+
+            mapNumbers =
+                cached
+
+            print(
+                "🗺️ Lake Ridge maps from cache:",
+                cached.count
+            )
+
+            isLoadingMaps = false
+            return
+        }
+
+        do {
+
+            let values =
+                try await
+                VDOTSnowRouteService
+                    .shared
+                    .fetchDistinctValues(
+                        field:
+                            "MAPNUMBER",
+                        whereClause:
+                            "AHQNAME='Lake Ridge'"
+                    )
+
+            mapNumbers =
+                values
+
+            if values.isEmpty == false {
+
+                UserDefaults.standard
+                    .set(
+                        values,
+                        forKey:
+                            mapNumberCacheKey
+                    )
+            }
+
             print(
                 "🗺️ Lake Ridge maps:",
-                mapNumbers
+                values.count
             )
-            
+
         } catch {
-            
+
             errorMessage =
-            error.localizedDescription
-            
+                error.localizedDescription
+
             print(
                 "❌ Map list error:",
                 error
             )
         }
-        
+
         isLoadingMaps = false
     }
     

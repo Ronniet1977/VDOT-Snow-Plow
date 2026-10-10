@@ -32,6 +32,8 @@ struct AdminStatusBoardView: View {
     @ObservedObject var driverStore:
     CrewDriverStore
     
+    let canEdit: Bool
+    
     @StateObject private var statusStore =
     DriverStatusStore()
     
@@ -279,12 +281,15 @@ struct AdminStatusBoardView: View {
                         }
                     }
                     
-                    Button(
-                        "End Storm",
-                        role: .destructive
-                    ) {
-                        
-                        stormStore.endStorm()
+                    if canEdit {
+
+                        Button(
+                            "Start New Storm"
+                        ) {
+
+                            showingNewStorm =
+                                true
+                        }
                     }
                     
                 } else {
@@ -358,7 +363,8 @@ struct AdminStatusBoardView: View {
             }
             .pickerStyle(.segmented)
             
-            if crewGroupFilter != .all {
+            if crewGroupFilter != .all &&
+                canEdit {
                 
                 HStack {
                     
@@ -426,12 +432,16 @@ struct AdminStatusBoardView: View {
                     DriverStatusCard(
                         driver:
                             driver,
+
+                        canEdit:
+                            canEdit,
+
                         activeBlock:
                             statusStore
-                            .activeBlock(
-                                for:
-                                    driver.id
-                            ),
+                                .activeBlock(
+                                    for:
+                                        driver.id
+                                ),
                         totals:
                             stormStore.activeStormID.map {
                                 
@@ -556,20 +566,23 @@ struct AdminStatusBoardView: View {
                         }
                     )
                     
-                    Button {
-                        
-                        historyDriver =
-                        driver
-                        
-                    } label: {
-                        
-                        Label(
-                            "View / Edit Time History",
-                            systemImage:
-                                "clock.arrow.circlepath"
-                        )
+                    if canEdit {
+
+                        Button {
+
+                            historyDriver =
+                                driver
+
+                        } label: {
+
+                            Label(
+                                "View / Edit Time History",
+                                systemImage:
+                                    "clock.arrow.circlepath"
+                            )
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    .buttonStyle(.bordered)
                 }
             }
             
@@ -827,6 +840,8 @@ private struct DriverStatusCard: View {
     let driver:
     CrewDriver
     
+    let canEdit: Bool
+    
     let activeBlock:
     DriverStatusBlock?
     
@@ -957,19 +972,22 @@ private struct DriverStatusCard: View {
                         
                         Spacer()
                         
-                        Button {
-                            
-                            onAssignMap()
-                            
-                        } label: {
-                            
-                            Label(
-                                "Assign Map",
-                                systemImage:
-                                    "map.badge.plus"
-                            )
+                        if canEdit {
+
+                            Button {
+
+                                onAssignMap()
+
+                            } label: {
+
+                                Label(
+                                    "Assign Map",
+                                    systemImage:
+                                        "map.badge.plus"
+                                )
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .buttonStyle(.bordered)
                     }
                     
                     ForEach(
@@ -996,96 +1014,101 @@ private struct DriverStatusCard: View {
                             
                             Spacer()
                             
-                            Button("Finish") {
-                                
-                                onFinishMap(
-                                    assignment
-                                )
+                            if canEdit {
+
+                                Button("Finish") {
+
+                                    onFinishMap(
+                                        assignment
+                                    )
+                                }
+                                .buttonStyle(.bordered)
                             }
-                            .buttonStyle(.bordered)
                         }
                     }
                 }
             }
-            
-            HStack {
+            if canEdit {
                 
-                if activeBlock?.status == .push {
+                HStack {
                     
-                    Button("PUSH") {
-                        onPush()
+                    if activeBlock?.status == .push {
+                        
+                        Button("PUSH") {
+                            onPush()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(
+                            hasActiveStorm == false
+                        )
+                        
+                    } else {
+                        
+                        Button("PUSH") {
+                            onPush()
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(
+                            hasActiveStorm == false
+                        )
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(
-                        hasActiveStorm == false
-                    )
                     
-                } else {
-                    
-                    Button("PUSH") {
-                        onPush()
+                    if activeBlock?.status == .standby {
+                        
+                        Button("STANDBY") {
+                            onStandby()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(
+                            hasActiveStorm == false
+                        )
+                        
+                    } else {
+                        
+                        Button("STANDBY") {
+                            onStandby()
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(
+                            hasActiveStorm == false
+                        )
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(
-                        hasActiveStorm == false
-                    )
-                }
-                
-                if activeBlock?.status == .standby {
                     
-                    Button("STANDBY") {
-                        onStandby()
+                    if activeBlock?.status == .broke {
+                        
+                        Button("BROKE") {
+                            onBroke()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(
+                            hasActiveStorm == false
+                        )
+                        
+                    } else {
+                        
+                        Button("BROKE") {
+                            onBroke()
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(
+                            hasActiveStorm == false
+                        )
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(
-                        hasActiveStorm == false
-                    )
                     
-                } else {
-                    
-                    Button("STANDBY") {
-                        onStandby()
+                    if activeBlock == nil {
+                        
+                        Button("OFF DUTY") {
+                            onOffDuty()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        
+                    } else {
+                        
+                        Button("OFF DUTY") {
+                            onOffDuty()
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(
-                        hasActiveStorm == false
-                    )
-                }
-                
-                if activeBlock?.status == .broke {
-                    
-                    Button("BROKE") {
-                        onBroke()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(
-                        hasActiveStorm == false
-                    )
-                    
-                } else {
-                    
-                    Button("BROKE") {
-                        onBroke()
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(
-                        hasActiveStorm == false
-                    )
-                }
-                
-                if activeBlock == nil {
-                    
-                    Button("OFF DUTY") {
-                        onOffDuty()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    
-                } else {
-                    
-                    Button("OFF DUTY") {
-                        onOffDuty()
-                    }
-                    .buttonStyle(.bordered)
                 }
             }
             

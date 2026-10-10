@@ -16,7 +16,7 @@ final class CloudSupervisorService {
 
     private let database =
         CKContainer.default()
-            .privateCloudDatabase
+            .publicCloudDatabase
 
     private init() {}
 

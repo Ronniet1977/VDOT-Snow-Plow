@@ -7,6 +7,18 @@ struct AdminTimeHomeView: View {
     @StateObject private var supervisorStore =
     SupervisorSettingsStore()
     
+    @StateObject private var userStore =
+        AppUserStore()
+    
+    @StateObject private var currentUserStore =
+        CurrentUserStore()
+    
+    private var currentUser: AppUser? {
+        currentUserStore.currentUser(
+            from: userStore.users
+        )
+    }
+    
     var body: some View {
         
         NavigationStack {
@@ -15,67 +27,137 @@ struct AdminTimeHomeView: View {
                 
                 Section("Time Control") {
                     
-                    NavigationLink {
-                        
-                        AdminStatusBoardView(
-                            driverStore:
-                                driverStore
-                        )
-                        
-                    } label: {
-                        
-                        Label(
-                            "Status Board",
-                            systemImage:
-                                "clock.arrow.circlepath"
-                        )
+                    if currentUser?.role == .admin ||
+                       currentUser?.role == .supervisor {
+
+                        NavigationLink {
+
+                            AdminStatusBoardView(
+                                driverStore: driverStore,
+                                canEdit:
+                                    currentUser?.role == .admin
+                            )
+
+                        } label: {
+
+                            Label(
+                                "Status Board",
+                                systemImage:
+                                    "clock.arrow.circlepath"
+                            )
+                        }
                     }
                 }
                 
                 Section("Crew") {
-                    
                     NavigationLink {
-                        
-                        CrewDriversView(
-                            store:
-                                driverStore
+
+                        CurrentUserPickerView(
+                            userStore:
+                                userStore,
+                            currentUserStore:
+                                currentUserStore
                         )
-                        
+
                     } label: {
-                        
+
                         HStack {
-                            
+
                             Label(
-                                "Drivers",
+                                "Current User",
                                 systemImage:
-                                    "person.3"
+                                    "person.crop.circle"
                             )
-                            
+
                             Spacer()
-                            
-                            Text(
-                                "\(driverStore.drivers.count)"
-                            )
-                            .foregroundStyle(
-                                .secondary
-                            )
+
+                            if let user =
+                                currentUserStore
+                                    .currentUser(
+                                        from:
+                                            userStore.users
+                                    ) {
+
+                                Text(
+                                    user.name
+                                )
+                                .foregroundStyle(
+                                    .secondary
+                                )
+
+                            } else {
+
+                                Text(
+                                    "Choose"
+                                )
+                                .foregroundStyle(
+                                    .secondary
+                                )
+                            }
                         }
                     }
                     
-                    NavigationLink {
+                    if currentUser?.role == .admin {
 
-                        SupervisorSettingsView(
-                            store:
-                                supervisorStore
-                        )
+                        NavigationLink {
 
-                    } label: {
+                            CrewDriversView(
+                                store:
+                                    driverStore
+                            )
 
-                        Label(
-                            "Supervisors",
-                            systemImage:
-                                "person.2.badge.gearshape"
-                        )
+                        } label: {
+
+                            HStack {
+
+                                Label(
+                                    "Drivers",
+                                    systemImage:
+                                        "person.3"
+                                )
+
+                                Spacer()
+
+                                Text(
+                                    "\(driverStore.drivers.count)"
+                                )
+                                .foregroundStyle(
+                                    .secondary
+                                )
+                            }
+                        }
+
+                        NavigationLink {
+
+                            SupervisorSettingsView(
+                                store:
+                                    supervisorStore
+                            )
+
+                        } label: {
+
+                            Label(
+                                "Supervisors",
+                                systemImage:
+                                    "person.2.badge.gearshape"
+                            )
+                        }
+
+                        NavigationLink {
+
+                            AppUsersView(
+                                store:
+                                    userStore
+                            )
+
+                        } label: {
+
+                            Label(
+                                "Users",
+                                systemImage:
+                                    "person.crop.circle.badge.checkmark"
+                            )
+                        }
                     }
                     
                     HStack {
@@ -104,6 +186,9 @@ struct AdminTimeHomeView: View {
                     .syncFromCloud()
 
                 await supervisorStore
+                    .syncFromCloud()
+
+                await userStore
                     .syncFromCloud()
             }
         }

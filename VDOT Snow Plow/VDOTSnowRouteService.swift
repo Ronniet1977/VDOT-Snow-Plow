@@ -220,6 +220,27 @@ final class VDOTSnowRouteService {
             throw VDOTSnowRouteError.invalidURL
         }
         
+        if
+            let cachedData =
+                loadCachedRouteData(
+                    ahqName: ahqName,
+                    mapNumber: mapNumber
+                ) {
+
+            let cachedRoutes =
+                try decodeRoutes(
+                    from: cachedData
+                )
+
+            print(
+                "📦 VDOT routes from cache:",
+                mapNumber ?? "",
+                cachedRoutes.count
+            )
+
+            return cachedRoutes
+        }
+        
         print(
             "🌨️ Loading NoVA routes:",
             url.absoluteString
@@ -238,6 +259,40 @@ final class VDOTSnowRouteService {
             )
         else {
             throw VDOTSnowRouteError.badResponse
+        }
+        
+        if
+            let json =
+                try? JSONSerialization.jsonObject(
+                    with: data
+                ) as? [String: Any],
+            let error =
+                json["error"]
+                    as? [String: Any] {
+
+            let code =
+                error["code"]
+                    as? Int
+                ?? 0
+
+            let message =
+                error["message"]
+                    as? String
+                ?? "ArcGIS error"
+
+            print(
+                "❌ ArcGIS error:",
+                code,
+                message
+            )
+
+            if code == 429 {
+                throw VDOTSnowRouteError.rateLimited
+            }
+
+            throw VDOTSnowRouteError.arcGISError(
+                message
+            )
         }
         
         let objects =
@@ -327,12 +382,24 @@ final class VDOTSnowRouteService {
             )
         }
         
+        let decodedRoutes =
+            try decodeRoutes(
+                from: data
+            )
+
+        saveRouteData(
+            data,
+            ahqName: ahqName,
+            mapNumber: mapNumber
+        )
+
         print(
             "✅ NoVA routes loaded:",
-            routes.count
+            decodedRoutes.count
         )
+
+        return decodedRoutes
         
-        return routes
     }
     
     // MARK: - Properties
@@ -405,11 +472,180 @@ final class VDOTSnowRouteService {
             describing: value
         )
     }
+    
+    private func routeCacheURL(
+        ahqName: String?,
+        mapNumber: String?
+    ) -> URL? {
+
+        let ahq =
+            (ahqName ?? "all")
+                .replacingOccurrences(
+                    of: "/",
+                    with: "-"
+                )
+
+        let map =
+            (mapNumber ?? "all")
+                .replacingOccurrences(
+                    of: "/",
+                    with: "-"
+                )
+
+        guard
+            let directory =
+                FileManager.default.urls(
+                    for: .cachesDirectory,
+                    in: .userDomainMask
+                ).first
+        else {
+            return nil
+        }
+
+        return directory
+            .appendingPathComponent(
+                "VDOT-\(ahq)-\(map).geojson"
+            )
+    }
+
+    private func loadCachedRouteData(
+        ahqName: String?,
+        mapNumber: String?
+    ) -> Data? {
+
+        guard
+            let url =
+                routeCacheURL(
+                    ahqName: ahqName,
+                    mapNumber: mapNumber
+                )
+        else {
+            return nil
+        }
+
+        return try? Data(
+            contentsOf: url
+        )
+    }
+
+    private func saveRouteData(
+        _ data: Data,
+        ahqName: String?,
+        mapNumber: String?
+    ) {
+
+        guard
+            let url =
+                routeCacheURL(
+                    ahqName: ahqName,
+                    mapNumber: mapNumber
+                )
+        else {
+            return
+        }
+
+        try? data.write(
+            to: url,
+            options: .atomic
+        )
+    }
+    
+    private func decodeRoutes(
+        from data: Data
+    ) throws -> [VDOTSnowRoute] {
+
+        let objects =
+            try MKGeoJSONDecoder()
+                .decode(data)
+
+        var routes:
+            [VDOTSnowRoute] = []
+
+        for object in objects {
+
+            guard
+                let feature =
+                    object as? MKGeoJSONFeature
+            else {
+                continue
+            }
+
+            let attributes =
+                decodeProperties(
+                    feature.properties
+                )
+
+            var polylines:
+                [MKPolyline] = []
+
+            for geometry
+            in feature.geometry {
+
+                if let polyline =
+                    geometry as? MKPolyline {
+
+                    polylines.append(
+                        polyline
+                    )
+                }
+
+                if let multiPolyline =
+                    geometry as? MKMultiPolyline {
+
+                    polylines.append(
+                        contentsOf:
+                            multiPolyline.polylines
+                    )
+                }
+            }
+
+            guard
+                polylines.isEmpty == false
+            else {
+                continue
+            }
+
+            routes.append(
+                VDOTSnowRoute(
+                    route:
+                        stringValue(
+                            attributes,
+                            key: "ROUTENUMBER"
+                        ),
+                    routeName:
+                        buildStreetName(
+                            attributes
+                        ),
+                    residency:
+                        stringValue(
+                            attributes,
+                            key: "AHQNAME"
+                        ),
+                    area:
+                        stringValue(
+                            attributes,
+                            key: "MAPNUMBER"
+                        ),
+                    zone:
+                        stringValue(
+                            attributes,
+                            key: "COUNTY"
+                        ),
+                    priority: "",
+                    polylines:
+                        polylines
+                )
+            )
+        }
+
+        return routes
+    }
 }
 
 enum VDOTSnowRouteError: Error {
-    
+
     case invalidURL
     case badResponse
+    case rateLimited
+    case arcGISError(String)
 }
-
