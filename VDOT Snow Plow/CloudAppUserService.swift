@@ -80,6 +80,9 @@ final class CloudAppUserService {
 
         record["truckVINLast4"] =
             user.truckVINLast4
+        
+        record["phoneNumber"] =
+            user.phoneNumber
 
         try await database.save(
             record
@@ -181,6 +184,10 @@ final class CloudAppUserService {
             let truckVINLast4 =
                 record["truckVINLast4"]
                     as? String
+            
+            let phoneNumber =
+                record["phoneNumber"]
+                    as? String
 
             let isActive =
                 (
@@ -199,6 +206,8 @@ final class CloudAppUserService {
                     appleUserID: appleUserID,
                     companyName: companyName,
                     truckVINLast4: truckVINLast4,
+                    phoneNumber:
+                        phoneNumber,
                     isActive: isActive
                 )
             )

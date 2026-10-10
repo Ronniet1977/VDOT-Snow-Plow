@@ -40,9 +40,14 @@ struct AdminTimeHomeView: View {
                     adminHome
                 }
 
-            } else if appleAccountStore.appleUserID != nil {
+            } else if let appleUserID =
+                        appleAccountStore.appleUserID {
 
-                adminHome
+                RequestAccessView(
+                    requestStore: requestStore,
+                    userStore: userStore,
+                    appleUserID: appleUserID
+                )
 
             } else {
 
@@ -66,6 +71,37 @@ struct AdminTimeHomeView: View {
 
             await requestStore
                 .syncFromCloud()
+        }
+        .task(id: appleUser?.id) {
+
+            print(
+                "🔔 Checking admin notification setup:",
+                appleUser?.name ?? "no user",
+                appleUser?.role.rawValue ?? "no role"
+            )
+
+            guard appleUser?.role == .admin
+            else {
+                return
+            }
+
+            await NotificationManager.shared
+                .requestPermission()
+
+            await NotificationManager.shared
+                .subscribeForAccessRequests()
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: .accessRequestNotificationReceived
+            )
+        ) { _ in
+
+            Task {
+
+                await requestStore
+                    .syncFromCloud()
+            }
         }
     }
         
@@ -105,8 +141,7 @@ struct AdminTimeHomeView: View {
                 
                 Section("Crew") {
                     
-                    if appleUser?.role == .admin ||
-                       appleAccountStore.appleUserID != nil {
+                    if appleUser?.role == .admin {
                         NavigationLink {
 
                             CrewDriversView(
@@ -155,7 +190,11 @@ struct AdminTimeHomeView: View {
 
                             AppUsersView(
                                 store:
-                                    userStore
+                                    userStore,
+                                driverStore:
+                                    driverStore,
+                                supervisorStore:
+                                    supervisorStore
                             )
 
                         } label: {
@@ -172,7 +211,8 @@ struct AdminTimeHomeView: View {
                             UserAccessRequestsView(
                                 requestStore: requestStore,
                                 userStore: userStore,
-                                driverStore: driverStore
+                                driverStore: driverStore,
+                                supervisorStore: supervisorStore
                             )
 
                         } label: {
@@ -189,8 +229,14 @@ struct AdminTimeHomeView: View {
 
                                 let pendingCount =
                                     requestStore.requests
-                                        .filter {
-                                            $0.status == "pending"
+                                        .filter { request in
+
+                                            request.status == "pending" &&
+
+                                            !userStore.users.contains {
+                                                $0.appleUserID ==
+                                                    request.appleUserID
+                                            }
                                         }
                                         .count
 
@@ -199,8 +245,25 @@ struct AdminTimeHomeView: View {
                                     Text(
                                         "\(pendingCount)"
                                     )
+                                    .font(
+                                        .caption.bold()
+                                    )
                                     .foregroundStyle(
-                                        .secondary
+                                        .white
+                                    )
+                                    .padding(
+                                        .horizontal,
+                                        8
+                                    )
+                                    .padding(
+                                        .vertical,
+                                        4
+                                    )
+                                    .background(
+                                        Color.red
+                                    )
+                                    .clipShape(
+                                        Capsule()
                                     )
                                 }
                             }

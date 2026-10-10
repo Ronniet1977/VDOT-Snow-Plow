@@ -62,6 +62,9 @@ final class CloudUserAccessRequestService {
 
         record["truckVINLast4"] =
             request.truckVINLast4
+        
+        record["phoneNumber"] =
+            request.phoneNumber
 
         record["requestedAt"] =
             request.requestedAt
@@ -125,6 +128,10 @@ final class CloudUserAccessRequestService {
                         record[
                             "truckVINLast4"
                         ] as? String,
+                    let phoneNumber =
+                        record[
+                            "phoneNumber"
+                        ] as? String,
                     let requestedAt =
                         record[
                             "requestedAt"
@@ -147,6 +154,8 @@ final class CloudUserAccessRequestService {
                             companyName,
                         truckVINLast4:
                             truckVINLast4,
+                        phoneNumber:
+                            phoneNumber,
                         requestedAt:
                             requestedAt,
                         status:

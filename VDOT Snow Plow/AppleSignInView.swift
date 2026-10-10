@@ -97,6 +97,8 @@ struct AppleSignInView: View {
                 RequestAccessView(
                     requestStore:
                         requestStore,
+                    userStore:
+                        userStore,
                     appleUserID:
                         appleUserID
                 )

@@ -11,6 +11,11 @@ struct AppUsersView: View {
 
     @ObservedObject var store:
         AppUserStore
+    @ObservedObject var driverStore:
+        CrewDriverStore
+
+    @ObservedObject var supervisorStore:
+        SupervisorSettingsStore
 
     @State private var showingAdd =
         false
@@ -144,6 +149,38 @@ struct AppUsersView: View {
                 }
             }
         }
+        .alert(
+            "Admin Required",
+            isPresented:
+                Binding(
+                    get: {
+                        store.adminProtectionMessage != nil
+                    },
+                    set: { newValue in
+
+                        if !newValue {
+                            store.adminProtectionMessage =
+                                nil
+                        }
+                    }
+                )
+        ) {
+
+            Button(
+                "OK",
+                role: .cancel
+            ) {
+                store.adminProtectionMessage =
+                    nil
+            }
+
+        } message: {
+
+            Text(
+                store.adminProtectionMessage
+                    ?? ""
+            )
+        }
         .sheet(
             isPresented:
                 $showingAdd
@@ -172,8 +209,21 @@ struct AppUsersView: View {
                     user
             ) { changed in
 
+                let syncedUser =
+                    UserRoleSyncManager.shared
+                        .syncRole(
+                            user:
+                                changed,
+                            oldUser:
+                                user,
+                            driverStore:
+                                driverStore,
+                            supervisorStore:
+                                supervisorStore
+                        )
+
                 store.update(
-                    changed
+                    syncedUser
                 )
             }
         }

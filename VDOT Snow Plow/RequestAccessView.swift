@@ -11,12 +11,15 @@ struct RequestAccessView: View {
 
     @ObservedObject var requestStore:
         UserAccessRequestStore
+    @ObservedObject var userStore:
+        AppUserStore
 
     let appleUserID: String
 
     @State private var name = ""
     @State private var companyName = ""
     @State private var truckVINLast4 = ""
+    @State private var phoneNumber = ""
 
     @State private var submitted = false
 
@@ -36,6 +39,14 @@ struct RequestAccessView: View {
                 TextField(
                     "Truck Company Name",
                     text: $companyName
+                )
+                
+                TextField(
+                    "Phone Number",
+                    text: $phoneNumber
+                )
+                .keyboardType(
+                    .phonePad
                 )
 
                 TextField(
@@ -76,6 +87,53 @@ struct RequestAccessView: View {
         .navigationTitle(
             "Request Access"
         )
+        .task {
+
+            await requestStore
+                .syncFromCloud()
+
+            while !Task.isCancelled {
+
+                await userStore
+                    .syncFromCloud()
+
+                if userStore.users.contains(
+                    where: {
+                        $0.appleUserID ==
+                            appleUserID &&
+                        $0.isActive
+                    }
+                ) {
+
+                    print(
+                        "✅ Approval detected for Apple user"
+                    )
+
+                    await requestStore
+                        .syncFromCloud()
+
+                    let myRequests =
+                        requestStore.requests
+                            .filter {
+                                $0.appleUserID ==
+                                    appleUserID
+                            }
+
+                    for request in myRequests {
+
+                        requestStore.delete(
+                            request
+                        )
+                    }
+
+                    break
+                }
+
+                try? await Task.sleep(
+                    for: .seconds(5)
+                )
+            }
+        }
     }
 
     private var formIsValid:
@@ -95,15 +153,35 @@ struct RequestAccessView: View {
             )
             .isEmpty &&
 
-        truckVINLast4
-            .trimmingCharacters(
-                in:
-                    .whitespacesAndNewlines
-            )
-            .count == 4
+            truckVINLast4
+                .trimmingCharacters(
+                    in:
+                        .whitespacesAndNewlines
+                )
+                .count == 4 &&
+
+            !phoneNumber
+                .trimmingCharacters(
+                    in:
+                        .whitespacesAndNewlines
+                )
+                .isEmpty
     }
 
     private func submitRequest() {
+
+        let alreadyPending =
+            requestStore.requests.contains {
+                $0.appleUserID == appleUserID &&
+                $0.status == "pending"
+            }
+
+        if alreadyPending {
+
+            submitted = true
+
+            return
+        }
 
         let request =
             UserAccessRequest(
@@ -126,7 +204,13 @@ struct RequestAccessView: View {
                             in:
                                 .whitespacesAndNewlines
                         )
-                        .uppercased()
+                        .uppercased(),
+                phoneNumber:
+                    phoneNumber
+                        .trimmingCharacters(
+                            in:
+                                .whitespacesAndNewlines
+                        )
             )
 
         requestStore.add(

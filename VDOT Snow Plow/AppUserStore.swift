@@ -14,6 +14,8 @@ final class AppUserStore:
 
     @Published var users:
         [AppUser] = []
+    @Published var adminProtectionMessage:
+        String?
 
     private let fileName =
         "AppUsers.json"
@@ -43,6 +45,49 @@ final class AppUserStore:
             users,
             fileName:
                 fileName
+        )
+    }
+    
+    func saveAndWait(
+        _ user: AppUser
+    ) async throws {
+
+        if let index =
+            users.firstIndex(
+                where: {
+                    $0.id == user.id
+                }
+            ) {
+
+            users[index] =
+                user
+
+        } else {
+
+            users.append(
+                user
+            )
+        }
+
+        users.sort {
+            $0.name
+                .localizedCaseInsensitiveCompare(
+                    $1.name
+                )
+            ==
+            .orderedAscending
+        }
+
+        save()
+
+        try await cloud
+            .saveUser(
+                user
+            )
+
+        print(
+            "☁️ User saved:",
+            user.name
         )
     }
 
@@ -105,6 +150,37 @@ final class AppUserStore:
             return
         }
 
+        let oldUser =
+            users[index]
+
+        let activeAdminCount =
+            users.filter {
+                $0.role == .admin &&
+                $0.isActive
+            }
+            .count
+
+        let removingLastAdmin =
+            oldUser.role == .admin &&
+            oldUser.isActive &&
+            (
+                user.role != .admin ||
+                !user.isActive
+            ) &&
+            activeAdminCount <= 1
+
+        if removingLastAdmin {
+            
+            adminProtectionMessage =
+                "At least one active Admin is required."
+
+            print(
+                "🛑 Cannot remove the last active Admin"
+            )
+
+            return
+        }
+
         users[index] =
             user
 
@@ -138,9 +214,23 @@ final class AppUserStore:
         _ user: AppUser
     ) {
 
+        if user.role == .admin &&
+            user.isActive &&
+            activeAdminCount <= 1 {
+            
+            adminProtectionMessage =
+                "At least one active Admin is required."
+
+            print(
+                "🛑 Cannot delete the last active Admin"
+            )
+
+            return
+        }
+
         users.removeAll {
             $0.id ==
-            user.id
+                user.id
         }
 
         save()
@@ -177,42 +267,21 @@ final class AppUserStore:
                 try await cloud
                     .fetchUsers()
 
-            for cloudUser
-            in cloudUsers {
-
-                if let index =
-                    users.firstIndex(
-                        where: {
-                            $0.id ==
-                            cloudUser.id
-                        }
-                    ) {
-
-                    users[index] =
-                        cloudUser
-
-                } else {
-
-                    users.append(
-                        cloudUser
-                    )
+            users =
+                cloudUsers.sorted {
+                    $0.name
+                        .localizedCaseInsensitiveCompare(
+                            $1.name
+                        )
+                    ==
+                    .orderedAscending
                 }
-            }
-
-            users.sort {
-                $0.name
-                    .localizedCaseInsensitiveCompare(
-                        $1.name
-                    )
-                ==
-                .orderedAscending
-            }
 
             save()
 
             print(
-                "☁️ Users merged from CloudKit:",
-                cloudUsers.count
+                "☁️ Users synced from CloudKit:",
+                users.count
             )
 
         } catch {
@@ -222,5 +291,14 @@ final class AppUserStore:
                 error
             )
         }
+    }
+    
+    private var activeAdminCount: Int {
+
+        users.filter {
+            $0.role == .admin &&
+            $0.isActive
+        }
+        .count
     }
 }

@@ -51,6 +51,7 @@ struct AppUser: Identifiable, Codable, Equatable {
 
     var companyName: String?
     var truckVINLast4: String?
+    var phoneNumber: String?
 
     var isActive: Bool = true
 }

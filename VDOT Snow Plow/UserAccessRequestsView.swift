@@ -17,6 +17,8 @@ struct UserAccessRequestsView: View {
 
     @ObservedObject var driverStore:
         CrewDriverStore
+    @ObservedObject var supervisorStore:
+        SupervisorSettingsStore
     
     @State private var selectedRoles:
         [UUID: AppUserRole] = [:]
@@ -27,8 +29,14 @@ struct UserAccessRequestsView: View {
 
             let pending =
                 requestStore.requests
-                    .filter {
-                        $0.status == "pending"
+                    .filter { request in
+
+                        request.status == "pending" &&
+
+                        !userStore.users.contains {
+                            $0.appleUserID ==
+                                request.appleUserID
+                        }
                     }
 
             if pending.isEmpty {
@@ -196,44 +204,140 @@ struct UserAccessRequestsView: View {
     }
 
     private func approve(
-        _ request:
-            UserAccessRequest
+        _ request: UserAccessRequest
     ) {
 
-        let driver =
-            matchingDriver(
-                for: request
-            )
+        Task {
 
-        let user =
-            AppUser(
-                name:
-                    request.name,
-                role:
-                    selectedRoles[
-                        request.id
-                    ] ?? .driver,
-                category:
-                    driver?.category,
-                driverID:
-                    driver?.id,
-                appleUserID:
-                    request.appleUserID,
-                companyName:
-                    request.companyName,
-                truckVINLast4:
-                    request.truckVINLast4,
-                isActive:
+            var driver =
+                matchingDriver(
+                    for: request
+                )
+
+            let selectedRole =
+                selectedRoles[
+                    request.id
+                ] ?? .driver
+
+            if selectedRole == .driver &&
+                driver == nil {
+
+                driverStore.add(
+                    name: request.name,
+                    truckNumber: request.truckVINLast4,
+                    category: .plowOnly
+                )
+
+                driver =
+                    driverStore.drivers.first {
+                        $0.name
+                            .localizedCaseInsensitiveCompare(
+                                request.name
+                            )
+                        ==
+                        .orderedSame
+                    }
+            }
+
+            let userToSave: AppUser
+
+            if var existingUser =
+                userStore.users.first(
+                    where: {
+                        $0.appleUserID ==
+                            request.appleUserID
+                    }
+                ) {
+
+                existingUser.name =
+                    request.name
+
+                existingUser.role =
+                    selectedRole
+
+                existingUser.category =
+                    driver?.category
+
+                existingUser.driverID =
+                    driver?.id
+
+                existingUser.companyName =
+                    request.companyName
+
+                existingUser.truckVINLast4 =
+                    request.truckVINLast4
+                
+                existingUser.phoneNumber =
+                    request.phoneNumber
+
+                existingUser.isActive =
                     true
-            )
 
-        userStore.add(
-            user
-        )
+                userToSave =
+                    existingUser
 
-        requestStore.delete(
-            request
-        )
+            } else {
+
+                userToSave =
+                    AppUser(
+                        name:
+                            request.name,
+                        role:
+                            selectedRole,
+                        category:
+                            driver?.category,
+                        driverID:
+                            driver?.id,
+                        appleUserID:
+                            request.appleUserID,
+                        companyName:
+                            request.companyName,
+                        truckVINLast4:
+                            request.truckVINLast4,
+                        phoneNumber:
+                            request.phoneNumber,
+                        isActive:
+                            true
+                    )
+            }
+            
+            let syncedUser =
+                UserRoleSyncManager.shared
+                    .syncRole(
+                        user: userToSave,
+                        oldUser:
+                            userStore.users.first(
+                                where: {
+                                    $0.appleUserID ==
+                                        request.appleUserID
+                                }
+                            ),
+                        driverStore:
+                            driverStore,
+                        supervisorStore:
+                            supervisorStore
+                    )
+
+            do {
+
+                try await userStore
+                    .saveAndWait(
+                        syncedUser
+                    )
+
+                print(
+                    "✅ Access approved:",
+                    request.name
+                )
+
+            } catch {
+
+                print(
+                    "❌ Approval failed:",
+                    error
+                )
+            }
+        }
     }
 
     private func deny(
