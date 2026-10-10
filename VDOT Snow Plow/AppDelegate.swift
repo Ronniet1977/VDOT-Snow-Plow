@@ -30,19 +30,37 @@ final class AppDelegate:
     }
 
     func userNotificationCenter(
-        _ center:
-            UNUserNotificationCenter,
-        willPresent notification:
-            UNNotification
-    ) async
-        -> UNNotificationPresentationOptions {
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
 
-        NotificationCenter.default.post(
-            name:
-                .accessRequestNotificationReceived,
-            object:
-                nil
-        )
+        let category =
+            notification.request
+                .content
+                .categoryIdentifier
+
+        if category == "MAP_ACKNOWLEDGED" {
+
+            print(
+                "📩 Map acknowledgement push received"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapAcknowledgementNotificationReceived,
+                object:
+                    nil
+            )
+
+        } else {
+
+            NotificationCenter.default.post(
+                name:
+                    .accessRequestNotificationReceived,
+                object:
+                    nil
+            )
+        }
 
         return [
             .banner,
@@ -52,18 +70,34 @@ final class AppDelegate:
     }
 
     func userNotificationCenter(
-        _ center:
-            UNUserNotificationCenter,
-        didReceive response:
-            UNNotificationResponse
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
     ) async {
 
-        NotificationCenter.default.post(
-            name:
-                .accessRequestNotificationReceived,
-            object:
-                nil
-        )
+        let category =
+            response.notification
+                .request
+                .content
+                .categoryIdentifier
+
+        if category == "MAP_ACKNOWLEDGED" {
+
+            NotificationCenter.default.post(
+                name:
+                    .mapAcknowledgementNotificationReceived,
+                object:
+                    nil
+            )
+
+        } else {
+
+            NotificationCenter.default.post(
+                name:
+                    .accessRequestNotificationReceived,
+                object:
+                    nil
+            )
+        }
     }
     
     func application(
@@ -97,6 +131,29 @@ final class AppDelegate:
             error
         )
     }
+    
+    func application(
+        _ application: UIApplication,
+        didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+        fetchCompletionHandler completionHandler:
+            @escaping (UIBackgroundFetchResult) -> Void
+    ) {
+
+        print(
+            "📩 Remote notification received"
+        )
+
+        NotificationCenter.default.post(
+            name:
+                .accessRequestNotificationReceived,
+            object:
+                nil
+        )
+
+        completionHandler(
+            .newData
+        )
+    }
 }
 
 extension Notification.Name {
@@ -104,5 +161,10 @@ extension Notification.Name {
     static let accessRequestNotificationReceived =
         Notification.Name(
             "accessRequestNotificationReceived"
+        )
+    
+    static let mapAcknowledgementNotificationReceived =
+        Notification.Name(
+            "mapAcknowledgementNotificationReceived"
         )
 }

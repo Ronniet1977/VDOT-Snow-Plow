@@ -20,7 +20,8 @@ struct DriverHomeView: View {
 
     @StateObject private var mapAssignmentStore =
         DriverMapAssignmentStore()
-    
+    @StateObject private var acknowledgementStore =
+        MapAssignmentAcknowledgementStore()
 
     private var driver: CrewDriver? {
         driverStore.drivers.first {
@@ -98,6 +99,32 @@ struct DriverHomeView: View {
             .navigationTitle(
                 "My Snow Plow"
             )
+            .task {
+
+                if let driver {
+
+                    await NotificationManager.shared
+                        .requestPermission()
+
+                    await NotificationManager.shared
+                        .subscribeForMapAssignments(
+                            driverID: driver.id
+                        )
+                }
+
+                while !Task.isCancelled {
+
+                    await mapAssignmentStore
+                        .syncFromCloud()
+
+                    await acknowledgementStore
+                        .syncFromCloud()
+
+                    try? await Task.sleep(
+                        for: .seconds(5)
+                    )
+                }
+            }
         }
     }
     
@@ -153,34 +180,87 @@ struct DriverHomeView: View {
 
                 ForEach(assignments) { assignment in
 
-                    NavigationLink {
+                    VStack(
+                        alignment: .leading,
+                        spacing: 8
+                    ) {
 
-                        VDOTSnowMapNativeView(
-                            initialMapNumber:
-                                assignment.mapNumber
-                        )
+                        NavigationLink {
 
-                    } label: {
-
-                        VStack(
-                            alignment: .leading,
-                            spacing: 4
-                        ) {
-
-                            Text(
-                                "Map \(assignment.mapNumber)"
+                            VDOTSnowMapNativeView(
+                                initialMapNumber:
+                                    assignment.mapNumber
                             )
-                            .font(.headline)
 
-                            Text(
-                                assignment.assignedAt.formatted(
-                                    date: .abbreviated,
-                                    time: .shortened
+                        } label: {
+
+                            VStack(
+                                alignment: .leading,
+                                spacing: 4
+                            ) {
+
+                                Text(
+                                    "Map \(assignment.mapNumber)"
                                 )
+                                .font(.headline)
+
+                                Text(
+                                    assignment.assignedAt.formatted(
+                                        date: .abbreviated,
+                                        time: .shortened
+                                    )
+                                )
+                                .foregroundStyle(
+                                    .secondary
+                                )
+                            }
+                        }
+
+                        if let acknowledgement =
+                            acknowledgementStore
+                                .acknowledgement(
+                                    for: assignment.id
+                                ) {
+
+                            Label(
+                                "Acknowledged \(acknowledgement.acknowledgedAt.formatted(date: .omitted, time: .shortened))",
+                                systemImage:
+                                    "checkmark.circle.fill"
                             )
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(
+                                .green
+                            )
+
+                        } else {
+
+                            Button(
+                                "Acknowledge"
+                            ) {
+
+                                mapAssignmentStore
+                                    .acknowledge(
+                                        assignment
+                                    )
+
+                                Task {
+
+                                    try? await Task.sleep(
+                                        for: .seconds(1)
+                                    )
+
+                                    await acknowledgementStore
+                                        .syncFromCloud()
+                                }
+                            }
+                            .buttonStyle(
+                                .borderedProminent
+                            )
                         }
                     }
+                    .padding(
+                        .vertical,
+                        4
+                    )
                 }
             }
         }

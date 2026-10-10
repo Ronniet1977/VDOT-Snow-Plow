@@ -22,6 +22,8 @@ struct RequestAccessView: View {
     @State private var phoneNumber = ""
 
     @State private var submitted = false
+    @State private var denialMessage:
+        String?
 
     var body: some View {
 
@@ -83,6 +85,19 @@ struct RequestAccessView: View {
                     )
                 }
             }
+            
+            if let denialMessage {
+
+                Section {
+
+                    Text(
+                        denialMessage
+                    )
+                    .foregroundStyle(
+                        .red
+                    )
+                }
+            }
         }
         .navigationTitle(
             "Request Access"
@@ -97,6 +112,77 @@ struct RequestAccessView: View {
                 await userStore
                     .syncFromCloud()
 
+                // Check for denial first
+                do {
+
+                    await requestStore
+                        .syncFromCloud()
+
+                    let myRequests =
+                        requestStore.requests
+                            .filter {
+                                $0.appleUserID ==
+                                    appleUserID
+                            }
+
+                    let decisions =
+                        try await
+                            CloudAccessRequestDecisionService
+                                .shared
+                                .fetchDecisions(
+                                    for: appleUserID
+                                )
+
+                    if let denied =
+                        decisions.first(
+                            where: { decision in
+
+                                decision.decision ==
+                                    "denied" &&
+
+                                myRequests.contains {
+                                    $0.id ==
+                                        decision.requestID
+                                }
+                            }
+                        ) {
+
+                        if let deniedRequest =
+                            myRequests.first(
+                                where: {
+                                    $0.id ==
+                                        denied.requestID
+                                }
+                            ) {
+
+                            requestStore.delete(
+                                deniedRequest
+                            )
+                        }
+
+                        denialMessage =
+                            "Your access request was denied. You may submit a new request."
+
+                        submitted = false
+
+                        print(
+                            "🚫 Access denial detected:",
+                            denied.requestID
+                        )
+
+                        // DO NOT break here.
+                        // Keep watching in case they submit again.
+                    }
+
+                } catch {
+
+                    print(
+                        "❌ Decision check failed:",
+                        error
+                    )
+                }
+
+                // Then check for approval
                 if userStore.users.contains(
                     where: {
                         $0.appleUserID ==
@@ -169,6 +255,8 @@ struct RequestAccessView: View {
     }
 
     private func submitRequest() {
+        
+        denialMessage = nil
 
         let alreadyPending =
             requestStore.requests.contains {

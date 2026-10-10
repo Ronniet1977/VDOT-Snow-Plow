@@ -43,6 +43,8 @@ struct AdminStatusBoardView: View {
     
     @StateObject private var stormStore =
     AdminStormStore()
+    @StateObject private var acknowledgementStore =
+        MapAssignmentAcknowledgementStore()
     
     @State private var showingNewStorm =
     false
@@ -491,6 +493,19 @@ struct AdminStatusBoardView: View {
                             driver
                         },
                         
+                        mapAcknowledgements:
+                            Dictionary(
+                                uniqueKeysWithValues:
+                                    acknowledgementStore
+                                        .acknowledgements
+                                        .map {
+                                            (
+                                                $0.assignmentID,
+                                                $0
+                                            )
+                                        }
+                            ),
+                        
                         onFinishMap: { assignment in
                             
                             mapAssignmentStore
@@ -642,10 +657,39 @@ struct AdminStatusBoardView: View {
         .navigationTitle(
             "Status Board"
         )
+        .task {
+
+            await mapAssignmentStore
+                .syncFromCloud()
+
+            await acknowledgementStore
+                .syncFromCloud()
+        }
         .onReceive(
             timer
         ) {
             now = $0
+        }
+
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for:
+                    .mapAcknowledgementNotificationReceived
+            )
+        ) { _ in
+
+            Task {
+
+                print(
+                    "🔄 Refreshing map acknowledgements"
+                )
+
+                await acknowledgementStore
+                    .syncFromCloud()
+
+                await mapAssignmentStore
+                    .syncFromCloud()
+            }
         }
         .sheet(
             isPresented:
@@ -873,6 +917,9 @@ private struct DriverStatusCard: View {
     let onAssignMap:
     () -> Void
     
+    let mapAcknowledgements:
+        [UUID: MapAssignmentAcknowledgement]
+    
     let onFinishMap:
     (DriverMapAssignment) -> Void
     
@@ -912,6 +959,15 @@ private struct DriverStatusCard: View {
         totals.push +
         totals.standby +
         totals.broke
+    }
+    
+    private var hasAcknowledgedMap: Bool {
+
+        mapAssignments.contains {
+            mapAcknowledgements[
+                $0.id
+            ] != nil
+        }
     }
     
     var body: some View {
@@ -1004,27 +1060,59 @@ private struct DriverStatusCard: View {
                     ForEach(
                         mapAssignments
                     ) { assignment in
-                        
+
                         HStack {
-                            
+
                             Button {
-                                
+
                                 onOpenMap(
                                     assignment.mapNumber
                                 )
-                                
+
                             } label: {
-                                
-                                Label(
-                                    "Map \(assignment.mapNumber)",
-                                    systemImage: "map"
-                                )
-                                .font(.subheadline)
+
+                                VStack(
+                                    alignment: .leading,
+                                    spacing: 3
+                                ) {
+                                    
+                                    Label(
+                                        "Map \(assignment.mapNumber)",
+                                        systemImage: "map"
+                                    )
+                                    .font(.subheadline)
+                                    
+                                    if let acknowledgement =
+                                        mapAcknowledgements[
+                                            assignment.id
+                                        ] {
+                                        
+                                        Label(
+                                            "Acknowledged \(acknowledgement.acknowledgedAt.formatted(date: .omitted, time: .shortened))",
+                                            systemImage:
+                                                "checkmark.circle.fill"
+                                        )
+                                        .font(.caption)
+                                        .foregroundStyle(
+                                            .green
+                                        )
+                                        
+                                    } else {
+                                        
+                                        Text(
+                                            "Waiting for acknowledgment"
+                                        )
+                                        .font(.caption)
+                                        .foregroundStyle(
+                                            .orange
+                                        )
+                                    }
+                                }
                             }
                             .buttonStyle(.plain)
-                            
+
                             Spacer()
-                            
+
                             if canEdit {
 
                                 Button("Finish") {
@@ -1143,6 +1231,28 @@ private struct DriverStatusCard: View {
         .padding(
             .vertical,
             6
+        )
+        .padding(
+            .horizontal,
+            8
+        )
+        .background {
+
+            if hasAcknowledgedMap {
+
+                Color.green
+                    .opacity(0.12)
+
+            } else if !mapAssignments.isEmpty {
+
+                Color.orange
+                    .opacity(0.10)
+            }
+        }
+        .clipShape(
+            RoundedRectangle(
+                cornerRadius: 10
+            )
         )
     }
 }

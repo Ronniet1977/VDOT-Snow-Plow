@@ -22,6 +22,8 @@ struct UserAccessRequestsView: View {
     
     @State private var selectedRoles:
         [UUID: AppUserRole] = [:]
+    @State private var deniedRequestIDs:
+        Set<UUID> = []
 
     var body: some View {
 
@@ -36,7 +38,11 @@ struct UserAccessRequestsView: View {
                         !userStore.users.contains {
                             $0.appleUserID ==
                                 request.appleUserID
-                        }
+                        } &&
+
+                        !deniedRequestIDs.contains(
+                            request.id
+                        )
                     }
 
             if pending.isEmpty {
@@ -66,6 +72,49 @@ struct UserAccessRequestsView: View {
 
             await requestStore
                 .syncFromCloud()
+
+            var deniedIDs:
+                Set<UUID> = []
+
+            for request
+            in requestStore.requests {
+
+                do {
+
+                    let decisions =
+                        try await
+                            CloudAccessRequestDecisionService
+                                .shared
+                                .fetchDecisions(
+                                    for:
+                                        request.appleUserID
+                                )
+
+                    if decisions.contains(
+                        where: {
+                            $0.requestID ==
+                                request.id &&
+                            $0.decision ==
+                                "denied"
+                        }
+                    ) {
+
+                        deniedIDs.insert(
+                            request.id
+                        )
+                    }
+
+                } catch {
+
+                    print(
+                        "❌ Failed loading denial decisions:",
+                        error
+                    )
+                }
+            }
+
+            deniedRequestIDs =
+                deniedIDs
         }
     }
 
@@ -345,8 +394,43 @@ struct UserAccessRequestsView: View {
             UserAccessRequest
     ) {
 
-        requestStore.delete(
-            request
-        )
+        Task {
+
+            let decision =
+                AccessRequestDecision(
+                    requestID:
+                        request.id,
+                    appleUserID:
+                        request.appleUserID,
+                    decision:
+                        "denied"
+                )
+
+            do {
+
+                try await
+                    CloudAccessRequestDecisionService
+                        .shared
+                        .saveDecision(
+                            decision
+                        )
+                
+                deniedRequestIDs.insert(
+                    request.id
+                )
+
+                print(
+                    "🚫 Access denied:",
+                    request.name
+                )
+
+            } catch {
+
+                print(
+                    "❌ Denial save failed:",
+                    error
+                )
+            }
+        }
     }
 }

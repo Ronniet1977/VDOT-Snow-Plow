@@ -55,9 +55,14 @@ struct DriverMapAssignment: Identifiable, Codable, Equatable {
     var mapNumber: String
     
     var assignedAt = Date()
+    var acknowledgedAt: Date?
     var completedAt: Date?
     
     var notes = ""
+    
+    var isAcknowledged: Bool {
+        acknowledgedAt != nil
+    }
     
     var isCompleted: Bool {
         completedAt != nil

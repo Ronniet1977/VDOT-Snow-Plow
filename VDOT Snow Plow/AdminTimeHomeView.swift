@@ -74,12 +74,6 @@ struct AdminTimeHomeView: View {
         }
         .task(id: appleUser?.id) {
 
-            print(
-                "🔔 Checking admin notification setup:",
-                appleUser?.name ?? "no user",
-                appleUser?.role.rawValue ?? "no role"
-            )
-
             guard appleUser?.role == .admin
             else {
                 return
@@ -90,6 +84,9 @@ struct AdminTimeHomeView: View {
 
             await NotificationManager.shared
                 .subscribeForAccessRequests()
+
+            await NotificationManager.shared
+                .subscribeForMapAcknowledgements()
         }
         .onReceive(
             NotificationCenter.default.publisher(
@@ -99,8 +96,29 @@ struct AdminTimeHomeView: View {
 
             Task {
 
-                await requestStore
-                    .syncFromCloud()
+                print(
+                    "🔄 Refreshing access requests after push"
+                )
+
+                for attempt in 1...4 {
+
+                    await requestStore
+                        .syncFromCloud()
+
+                    if !requestStore.requests.isEmpty {
+
+                        print(
+                            "🔴 Access request found on attempt",
+                            attempt
+                        )
+
+                        break
+                    }
+
+                    try? await Task.sleep(
+                        for: .seconds(2)
+                    )
+                }
             }
         }
     }
