@@ -14,6 +14,8 @@ struct SupervisorMapReviewView: View {
     
     @StateObject private var inspectionStore =
         MapReviewInspectionStore()
+    @StateObject private var mapAssignmentStore =
+        DriverMapAssignmentStore()
 
     let supervisorUser: AppUser
 
@@ -23,8 +25,23 @@ struct SupervisorMapReviewView: View {
 
             let pending =
                 reviewRequestStore.requests
-                    .filter {
-                        $0.status == "pending"
+                    .filter { request in
+
+                        guard request.status == "pending"
+                        else {
+                            return false
+                        }
+
+                        let assignment =
+                            mapAssignmentStore
+                                .assignments
+                                .first {
+                                    $0.id ==
+                                        request.assignmentID
+                                }
+
+                        return assignment?
+                            .completedAt == nil
                     }
                     .sorted {
                         $0.requestedAt <
@@ -108,6 +125,13 @@ struct SupervisorMapReviewView: View {
                                         )
                                 }
                             }
+                            .disabled(
+                                canSelect(
+                                    .quarter,
+                                    for:
+                                        request
+                                ) == false
+                            )
 
                             Button("1/2") {
 
@@ -124,6 +148,13 @@ struct SupervisorMapReviewView: View {
                                         )
                                 }
                             }
+                            .disabled(
+                                canSelect(
+                                    .half,
+                                    for:
+                                        request
+                                ) == false
+                            )
 
                             Button("3/4") {
 
@@ -140,6 +171,13 @@ struct SupervisorMapReviewView: View {
                                         )
                                 }
                             }
+                            .disabled(
+                                canSelect(
+                                    .threeQuarter,
+                                    for:
+                                        request
+                                ) == false
+                            )
 
                             Button("Done") {
 
@@ -157,6 +195,13 @@ struct SupervisorMapReviewView: View {
                                 }
                             }
                         }
+                        .disabled(
+                            canSelect(
+                                .done,
+                                for:
+                                    request
+                            ) == false
+                        )
                         .buttonStyle(
                             .bordered
                         )
@@ -178,6 +223,104 @@ struct SupervisorMapReviewView: View {
 
             await inspectionStore
                 .syncFromCloud()
+            
+            await mapAssignmentStore
+                .syncFromCloud()
+            
+            await NotificationManager
+                .shared
+                .subscribeForMapAssignmentUpdates()
         }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for:
+                    .mapAssignmentChangedNotificationReceived
+            )
+        ) { _ in
+
+            Task {
+
+                print(
+                    "🔄 Refreshing assignments after finish"
+                )
+
+                for attempt in 1...4 {
+
+                    let previousCompletedCount =
+                        mapAssignmentStore
+                            .assignments
+                            .filter {
+                                $0.completedAt != nil
+                            }
+                            .count
+
+                    await mapAssignmentStore
+                        .syncFromCloud()
+
+                    let newCompletedCount =
+                        mapAssignmentStore
+                            .assignments
+                            .filter {
+                                $0.completedAt != nil
+                            }
+                            .count
+
+                    if newCompletedCount >
+                        previousCompletedCount {
+
+                        print(
+                            "✅ Finished assignment visible on attempt",
+                            attempt
+                        )
+
+                        break
+                    }
+
+                    try? await Task.sleep(
+                        for:
+                            .seconds(2)
+                    )
+                }
+            }
+        }
+    }
+    
+    private func progressRank(
+        _ progress: MapReviewProgress
+    ) -> Int {
+
+        switch progress {
+
+        case .quarter:
+            return 1
+
+        case .half:
+            return 2
+
+        case .threeQuarter:
+            return 3
+
+        case .done:
+            return 4
+        }
+    }
+    
+    private func canSelect(
+        _ progress: MapReviewProgress,
+        for request: MapReviewRequest
+    ) -> Bool {
+
+        guard let latest =
+            inspectionStore
+                .latestInspection(
+                    for:
+                        request.id
+                )
+        else {
+            return true
+        }
+
+        return progressRank(progress) >
+            progressRank(latest.progress)
     }
 }

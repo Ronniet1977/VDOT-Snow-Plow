@@ -316,6 +316,8 @@ struct AdminTimeHomeView: View {
                                     : nil,
                                 currentUser:
                                     appleUser,
+                                userStore:
+                                    userStore,
                                 inspectionStore:
                                     inspectionStore
                             )
@@ -326,6 +328,28 @@ struct AdminTimeHomeView: View {
                                 "Status Board",
                                 systemImage:
                                     "clock.arrow.circlepath"
+                            )
+                        }
+                    }
+                    
+                    if let appleUser,
+                       appleUser.role == .admin,
+                       appleUser.driverID != nil {
+
+                        NavigationLink {
+
+                            DriverHomeView(
+                                user: appleUser,
+                                driverStore: driverStore,
+                                appleAccountStore: appleAccountStore
+                            )
+
+                        } label: {
+
+                            Label(
+                                "Driver View",
+                                systemImage:
+                                    "steeringwheel"
                             )
                         }
                     }

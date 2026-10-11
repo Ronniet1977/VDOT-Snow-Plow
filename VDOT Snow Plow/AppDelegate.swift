@@ -162,6 +162,19 @@ final class AppDelegate:
                 object:
                     nil
             )
+            
+        case "MAP_ASSIGNMENT_CHANGED":
+
+            print(
+                "📩 Map assignment change push received"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapAssignmentChangedNotificationReceived,
+                object:
+                    nil
+            )
 
         default:
 
@@ -280,6 +293,15 @@ final class AppDelegate:
             NotificationCenter.default.post(
                 name:
                     .mapDrawingChangedNotificationReceived,
+                object:
+                    nil
+            )
+            
+        case "MAP_ASSIGNMENT_CHANGED":
+
+            NotificationCenter.default.post(
+                name:
+                    .mapAssignmentChangedNotificationReceived,
                 object:
                     nil
             )
@@ -434,6 +456,19 @@ final class AppDelegate:
                 object:
                     nil
             )
+            
+        case "MAP_ASSIGNMENT_CHANGED":
+
+            print(
+                "📩 Background map assignment change push"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapAssignmentChangedNotificationReceived,
+                object:
+                    nil
+            )
 
         default:
 
@@ -484,5 +519,10 @@ extension Notification.Name {
     static let mapDrawingChangedNotificationReceived =
         Notification.Name(
             "mapDrawingChangedNotificationReceived"
+        )
+    
+    static let mapAssignmentChangedNotificationReceived =
+        Notification.Name(
+            "mapAssignmentChangedNotificationReceived"
         )
 }

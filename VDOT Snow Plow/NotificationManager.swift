@@ -690,6 +690,86 @@ final class NotificationManager {
         }
     }
     
+    func subscribeForMapAssignmentUpdates() async {
+
+        let subscriptionID =
+            "MapAssignmentUpdatesV1"
+
+        do {
+
+            _ = try await database
+                .subscription(
+                    for: subscriptionID
+                )
+
+            print(
+                "🔔 Map assignment update subscription already exists"
+            )
+
+            return
+
+        } catch let error as CKError
+        where error.code == .unknownItem {
+
+            // Create below.
+
+        } catch {
+
+            print(
+                "❌ Map assignment update subscription check failed:",
+                error
+            )
+
+            return
+        }
+
+        let subscription =
+            CKQuerySubscription(
+                recordType:
+                    "DriverMapAssignment",
+                predicate:
+                    NSPredicate(
+                        value: true
+                    ),
+                subscriptionID:
+                    subscriptionID,
+                options: [
+                    .firesOnRecordUpdate
+                ]
+            )
+
+        let info =
+            CKSubscription.NotificationInfo()
+
+        info.shouldSendContentAvailable =
+            true
+
+        info.category =
+            "MAP_ASSIGNMENT_CHANGED"
+
+        subscription.notificationInfo =
+            info
+
+        do {
+
+            try await database
+                .save(
+                    subscription
+                )
+
+            print(
+                "🔔 Map assignment update notifications enabled"
+            )
+
+        } catch {
+
+            print(
+                "❌ Map assignment update subscription failed:",
+                error
+            )
+        }
+    }
+    
     func resetAllSubscriptions() async {
 
         do {

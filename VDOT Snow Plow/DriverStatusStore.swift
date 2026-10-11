@@ -157,5 +157,31 @@ final class DriverStatusStore: ObservableObject {
             broke
         )
     }
+    
+    func endAllActiveBlocks(
+        for stormID: UUID
+    ) {
+
+        let now = Date()
+
+        for index in blocks.indices {
+
+            guard
+                blocks[index].stormID == stormID,
+                blocks[index].endTime == nil
+            else {
+                continue
+            }
+
+            blocks[index].endTime =
+                now
+        }
+
+        save()
+
+        print(
+            "✅ All driver status blocks closed for storm"
+        )
+    }
 }
 

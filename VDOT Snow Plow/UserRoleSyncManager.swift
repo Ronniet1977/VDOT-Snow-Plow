@@ -66,90 +66,148 @@ final class UserRoleSyncManager {
         // MARK: - Apply New Role
 
         switch user.role {
-
+            
         case .driver:
-
+            
             if let existing =
                 driverStore.drivers.first(
                     where: {
                         $0.id ==
-                            user.driverID ||
+                        user.driverID ||
                         $0.name
                             .localizedCaseInsensitiveCompare(
                                 user.name
                             )
                         ==
-                        .orderedSame
+                            .orderedSame
                     }
                 ) {
-
+                
                 updatedUser.driverID =
-                    existing.id
-
+                existing.id
+                
                 driverStore.setActive(
                     existing,
                     active: true
                 )
-
+                
             } else {
-
+                
                 driverStore.add(
                     name:
                         user.name,
                     truckNumber:
                         "",
                     category:
-                        .plowOnly
+                            .plowOnly
                 )
-
+                
                 updatedUser.driverID =
-                    driverStore.drivers.first(
-                        where: {
-                            $0.name
-                                .localizedCaseInsensitiveCompare(
-                                    user.name
-                                )
-                            ==
+                driverStore.drivers.first(
+                    where: {
+                        $0.name
+                            .localizedCaseInsensitiveCompare(
+                                user.name
+                            )
+                        ==
                             .orderedSame
-                        }
-                    )?.id
+                    }
+                )?.id
             }
-
+            
         case .supervisor:
-
+            
             let category =
-                user.category
-                ?? .plowOnly
-
+            user.category
+            ?? .plowOnly
+            
             removeSupervisor(
                 named:
                     user.name,
                 supervisorStore:
                     supervisorStore
             )
-
+            
             let supervisor =
-                SupervisorContact(
-                    name:
-                        user.name,
-                    phoneNumber:
-                        user.phoneNumber
-                        ?? ""
-                )
-
+            SupervisorContact(
+                name:
+                    user.name,
+                phoneNumber:
+                    user.phoneNumber
+                ?? ""
+            )
+            
             supervisorStore.addSupervisor(
                 supervisor,
                 to:
                     category
             )
-
+            
             updatedUser.driverID =
-                nil
-
+            nil
+            
         case .admin:
-
-            updatedUser.driverID =
-                nil
+            
+            if let driverID =
+                user.driverID,
+               let existing =
+                driverStore.drivers.first(
+                    where: {
+                        $0.id == driverID
+                    }
+                ) {
+                
+                updatedUser.driverID =
+                existing.id
+                
+                driverStore.setActive(
+                    existing,
+                    active: true
+                )
+                
+            } else if let existing =
+                        driverStore.drivers.first(
+                            where: {
+                                $0.name
+                                    .localizedCaseInsensitiveCompare(
+                                        user.name
+                                    )
+                                ==
+                                    .orderedSame
+                            }
+                        ) {
+                
+                updatedUser.driverID =
+                existing.id
+                
+                driverStore.setActive(
+                    existing,
+                    active: true
+                )
+                
+            } else if user.driverID != nil {
+                
+                driverStore.add(
+                    name:
+                        user.name,
+                    truckNumber:
+                        "",
+                    category:
+                            .plowOnly
+                )
+                
+                updatedUser.driverID =
+                driverStore.drivers.first(
+                    where: {
+                        $0.name
+                            .localizedCaseInsensitiveCompare(
+                                user.name
+                            )
+                        ==
+                            .orderedSame
+                    }
+                )?.id
+            }
         }
 
         return updatedUser

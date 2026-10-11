@@ -35,7 +35,10 @@ struct AdminStatusBoardView: View {
     let canEdit: Bool
     let supervisorCategory: CrewCategory?
     let currentUser: AppUser?
-    
+
+    @ObservedObject var userStore:
+        AppUserStore
+
     @ObservedObject var inspectionStore:
         MapReviewInspectionStore
     
@@ -50,20 +53,6 @@ struct AdminStatusBoardView: View {
     AdminStormStore()
     @StateObject private var acknowledgementStore =
         MapAssignmentAcknowledgementStore()
-    
-    @State private var showingNewStorm =
-    false
-    
-    @State private var now =
-    Date()
-    @State private var searchText = ""
-    @State private var statusFilter:
-    StatusFilter = .all
-    @State private var crewGroupFilter:
-    CrewGroupFilter = .all
-    @State private var showingEndStormConfirmation =
-        false
-    
     @StateObject private var mapAssignmentStore =
     DriverMapAssignmentStore()
     
@@ -77,6 +66,23 @@ struct AdminStatusBoardView: View {
     
     @StateObject private var supervisorStore =
     SupervisorSettingsStore()
+    
+    @State private var showingNewStorm =
+    false
+    
+    @State private var now =
+    Date()
+    @State private var searchText = ""
+    @State private var statusFilter:
+    StatusFilter = .all
+    @State private var crewGroupFilter:
+    CrewGroupFilter = .all
+    @State private var showingEndStormConfirmation =
+        false
+    @State private var stormShareURL: URL?
+    @State private var showingStormShare = false
+    
+    
     
     private let supervisorPhone =
     ""
@@ -710,12 +716,79 @@ struct AdminStatusBoardView: View {
 
                 Task {
 
+                    guard let storm =
+                        stormStore.activeStorm
+                    else {
+                        return
+                    }
+
+                    let stormEnd =
+                        Date()
+
+                    // Close Push / Standby / Broke clocks first.
+                    statusStore
+                        .endAllActiveBlocks(
+                            for: stormID
+                        )
+
+                    var exportURL: URL?
+
+                    do {
+
+                        exportURL =
+                            try CSVExporter
+                            .buildStormStatusCSV(
+                                stormName:
+                                    storm.name,
+                                stormStart:
+                                    storm.start,
+                                stormEnd:
+                                    stormEnd,
+                                drivers:
+                                    driverStore.drivers,
+                                users:
+                                    userStore.users,
+                                blocks:
+                                    statusStore.blocks,
+                                assignments:
+                                    mapAssignmentStore.assignments,
+                                acknowledgements:
+                                    acknowledgementStore.acknowledgements,
+                                inspections:
+                                    inspectionStore.inspections,
+                                stormID:
+                                    stormID
+                            )
+
+                        print(
+                            "📄 Storm CSV created:",
+                            exportURL?.lastPathComponent
+                                ?? ""
+                        )
+
+                    } catch {
+
+                        print(
+                            "❌ Storm CSV failed:",
+                            error
+                        )
+                    }
+
                     await mapAssignmentStore
                         .finishAssignments(
                             for: stormID
                         )
 
                     stormStore.endStorm()
+
+                    if let exportURL {
+
+                        stormShareURL =
+                            exportURL
+
+                        showingStormShare =
+                            true
+                    }
                 }
             }
 
@@ -868,6 +941,20 @@ struct AdminStatusBoardView: View {
                         stormID,
                     assignmentStore:
                         mapAssignmentStore
+                )
+            }
+        }
+        .sheet(
+            isPresented:
+                $showingStormShare
+        ) {
+
+            if let stormShareURL {
+
+                ShareSheet(
+                    items: [
+                        stormShareURL
+                    ]
                 )
             }
         }
