@@ -160,6 +160,72 @@ struct DriverHomeView: View {
                 await reviewRequestStore
                     .syncFromCloud()
             }
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for:
+                        .mapAssignmentNotificationReceived
+                )
+            ) { _ in
+
+                Task {
+
+                    guard let driver
+                    else {
+                        return
+                    }
+
+                    let previousActiveCount =
+                        mapAssignmentStore
+                            .assignments
+                            .filter {
+                                $0.driverID ==
+                                    driver.id &&
+                                !$0.isCompleted
+                            }
+                            .count
+
+                    print(
+                        "🔄 Refreshing driver map assignments after push"
+                    )
+
+                    for attempt in 1...4 {
+
+                        await mapAssignmentStore
+                            .syncFromCloud()
+
+                        let activeCount =
+                            mapAssignmentStore
+                                .assignments
+                                .filter {
+                                    $0.driverID ==
+                                        driver.id &&
+                                    !$0.isCompleted
+                                }
+                                .count
+
+                        print(
+                            "🚜 Active driver maps:",
+                            activeCount,
+                            "attempt:",
+                            attempt
+                        )
+
+                        if activeCount !=
+                            previousActiveCount {
+
+                            print(
+                                "✅ Driver map assignments updated"
+                            )
+
+                            break
+                        }
+
+                        try? await Task.sleep(
+                            for: .seconds(2)
+                        )
+                    }
+                }
+            }
         }
     }
     
@@ -224,7 +290,11 @@ struct DriverHomeView: View {
 
                             VDOTSnowMapNativeView(
                                 initialMapNumber:
-                                    assignment.mapNumber
+                                    assignment.mapNumber,
+                                stormID:
+                                    assignment.stormID,
+                                currentUser:
+                                    user
                             )
 
                         } label: {
@@ -691,7 +761,11 @@ struct DriverHomeView: View {
 
                         VDOTSnowMapNativeView(
                             initialMapNumber:
-                                assignment.mapNumber
+                                assignment.mapNumber,
+                            stormID:
+                                assignment.stormID,
+                            currentUser:
+                                user
                         )
 
                     } label: {

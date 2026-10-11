@@ -60,6 +60,8 @@ struct AdminStatusBoardView: View {
     StatusFilter = .all
     @State private var crewGroupFilter:
     CrewGroupFilter = .all
+    @State private var showingEndStormConfirmation =
+        false
     
     @StateObject private var mapAssignmentStore =
     DriverMapAssignmentStore()
@@ -298,10 +300,11 @@ struct AdminStatusBoardView: View {
                     if canEdit {
 
                         Button(
-                            "Start New Storm"
+                            "End Storm",
+                            role: .destructive
                         ) {
 
-                            showingNewStorm =
+                            showingEndStormConfirmation =
                                 true
                         }
                     }
@@ -511,35 +514,38 @@ struct AdminStatusBoardView: View {
                             ),
                         
                         onFinishMap: { assignment in
-                            
+
                             mapAssignmentStore
                                 .finish(
                                     assignment
                                 )
-                            
+                        },
+
+                        onMessageSupervisor: { assignment in
+
                             let contacts =
-                            supervisorStore
-                                .supervisors(
-                                    for:
-                                        driver.category
-                                )
-                            
+                                supervisorStore
+                                    .supervisors(
+                                        for:
+                                            driver.category
+                                    )
+
                             let recipients =
-                            contacts
-                                .map {
-                                    $0.phoneNumber
-                                }
-                                .filter {
-                                    $0.isEmpty == false
-                                }
-                            
+                                contacts
+                                    .map {
+                                        $0.phoneNumber
+                                    }
+                                    .filter {
+                                        $0.isEmpty == false
+                                    }
+
                             mapCheckMessage =
-                            MapCheckMessage(
-                                mapNumber:
-                                    assignment.mapNumber,
-                                recipients:
-                                    recipients
-                            )
+                                MapCheckMessage(
+                                    mapNumber:
+                                        assignment.mapNumber,
+                                    recipients:
+                                        recipients
+                                )
                         },
                         
                         onOpenMap: { mapNumber in
@@ -670,6 +676,46 @@ struct AdminStatusBoardView: View {
 
             await acknowledgementStore
                 .syncFromCloud()
+        }
+        .alert(
+            "End Storm?",
+            isPresented:
+                $showingEndStormConfirmation
+        ) {
+
+            Button(
+                "Cancel",
+                role: .cancel
+            ) {
+            }
+
+            Button(
+                "End Storm",
+                role: .destructive
+            ) {
+
+                guard let stormID =
+                    stormStore.activeStormID
+                else {
+                    return
+                }
+
+                Task {
+
+                    await mapAssignmentStore
+                        .finishAssignments(
+                            for: stormID
+                        )
+
+                    stormStore.endStorm()
+                }
+            }
+
+        } message: {
+
+            Text(
+                "This will end the current storm. We will add assignment archiving and map-drawing cleanup next."
+            )
         }
         .onReceive(
             timer
@@ -958,6 +1004,9 @@ private struct DriverStatusCard: View {
     let onFinishMap:
     (DriverMapAssignment) -> Void
     
+    let onMessageSupervisor:
+    (DriverMapAssignment) -> Void
+    
     let onOpenMap:
     (String) -> Void
     
@@ -1173,7 +1222,26 @@ private struct DriverStatusCard: View {
 
                             Spacer()
 
+                            Spacer()
+
                             if canEdit {
+
+                                Button {
+
+                                    onMessageSupervisor(
+                                        assignment
+                                    )
+
+                                } label: {
+
+                                    Image(
+                                        systemName:
+                                            "message.fill"
+                                    )
+                                }
+                                .buttonStyle(
+                                    .bordered
+                                )
 
                                 Button("Finish") {
 

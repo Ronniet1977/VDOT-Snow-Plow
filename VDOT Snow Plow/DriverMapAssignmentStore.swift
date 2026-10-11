@@ -249,5 +249,58 @@ final class DriverMapAssignmentStore: ObservableObject {
 
         save()
     }
+    
+    func finishAssignments(
+        for stormID: UUID
+    ) async {
+
+        let activeAssignments =
+            assignments.filter {
+                $0.stormID == stormID &&
+                $0.completedAt == nil
+            }
+
+        for assignment in activeAssignments {
+
+            guard let index =
+                assignments.firstIndex(
+                    where: {
+                        $0.id == assignment.id
+                    }
+                )
+            else {
+                continue
+            }
+
+            assignments[index].completedAt =
+                Date()
+
+            let updated =
+                assignments[index]
+
+            do {
+
+                try await cloud
+                    .saveAssignment(
+                        updated
+                    )
+
+                print(
+                    "✅ Storm map finished:",
+                    updated.mapNumber
+                )
+
+            } catch {
+
+                print(
+                    "❌ Storm map finish failed:",
+                    updated.mapNumber,
+                    error
+                )
+            }
+        }
+
+        save()
+    }
 }
 

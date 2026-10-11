@@ -1,7 +1,9 @@
 import Foundation
 import CoreLocation
 
-struct SavedCoordinate: Codable {
+struct SavedCoordinate:
+    Codable,
+    Equatable {
     
     let latitude: Double
     let longitude: Double
@@ -168,6 +170,41 @@ final class VDOTDrawingStore {
             "🗑️ Deleted drawing:",
             ahqName,
             mapNumber
+        )
+    }
+    
+    func deleteAll(
+        ahqName: String
+    ) {
+
+        let prefix =
+            "VDOT_DRAWING_\(ahqName)_"
+
+        let defaults =
+            UserDefaults.standard
+
+        for key in defaults
+            .dictionaryRepresentation()
+            .keys {
+
+            if key.hasPrefix(
+                prefix
+            ) {
+
+                defaults.removeObject(
+                    forKey: key
+                )
+
+                print(
+                    "🗑️ Deleted drawing key:",
+                    key
+                )
+            }
+        }
+
+        print(
+            "✅ All VDOT drawings cleared for",
+            ahqName
         )
     }
 }

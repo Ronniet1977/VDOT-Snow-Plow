@@ -33,6 +33,7 @@ struct AssignedMapPreviewView: View {
                 VDOTDrawingMapView(
                     routes: routes,
                     mapNumber: mapNumber,
+                    sharedDrawings: [],
                     drawingEnabled:
                         .constant(false),
                     strokes:

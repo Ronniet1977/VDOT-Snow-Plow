@@ -149,6 +149,19 @@ final class AppDelegate:
                 object:
                     nil
             )
+            
+        case "MAP_DRAWING_CHANGED":
+
+            print(
+                "📩 Shared map drawing push received"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapDrawingChangedNotificationReceived,
+                object:
+                    nil
+            )
 
         default:
 
@@ -254,6 +267,19 @@ final class AppDelegate:
             NotificationCenter.default.post(
                 name:
                     .mapReviewInspectionNotificationReceived,
+                object:
+                    nil
+            )
+            
+        case "MAP_DRAWING_CHANGED":
+
+            print(
+                "📩 Tapped shared map drawing notification"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapDrawingChangedNotificationReceived,
                 object:
                     nil
             )
@@ -395,6 +421,19 @@ final class AppDelegate:
                 object:
                     nil
             )
+            
+        case "MAP_DRAWING_CHANGED":
+
+            print(
+                "📩 Background shared map drawing push"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapDrawingChangedNotificationReceived,
+                object:
+                    nil
+            )
 
         default:
 
@@ -440,5 +479,10 @@ extension Notification.Name {
     static let mapReviewInspectionNotificationReceived =
         Notification.Name(
             "mapReviewInspectionNotificationReceived"
+        )
+    
+    static let mapDrawingChangedNotificationReceived =
+        Notification.Name(
+            "mapDrawingChangedNotificationReceived"
         )
 }

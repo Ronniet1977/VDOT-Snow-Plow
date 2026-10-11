@@ -153,7 +153,7 @@ final class NotificationManager {
     ) async {
 
         let subscriptionID =
-            "MapAssignment-\(driverID.uuidString)"
+            "MapAssignmentV2-\(driverID.uuidString)"
 
         do {
 
@@ -199,7 +199,8 @@ final class NotificationManager {
                 subscriptionID:
                     subscriptionID,
                 options: [
-                    .firesOnRecordCreation
+                    .firesOnRecordCreation,
+                    .firesOnRecordUpdate
                 ]
             )
 
@@ -603,6 +604,87 @@ final class NotificationManager {
 
             print(
                 "❌ Map review inspection notification subscription failed:",
+                error
+            )
+        }
+    }
+    
+    func subscribeForSharedMapDrawings() async {
+
+        let subscriptionID =
+            "SharedMapDrawingSubscriptionV1"
+
+        do {
+
+            _ = try await database
+                .subscription(
+                    for: subscriptionID
+                )
+
+            print(
+                "🔔 Shared map drawing subscription already exists"
+            )
+
+            return
+
+        } catch let error as CKError
+        where error.code == .unknownItem {
+
+            // Create below.
+
+        } catch {
+
+            print(
+                "❌ Shared drawing subscription check failed:",
+                error
+            )
+
+            return
+        }
+
+        let subscription =
+            CKQuerySubscription(
+                recordType:
+                    "SharedMapDrawing",
+                predicate:
+                    NSPredicate(
+                        value: true
+                    ),
+                subscriptionID:
+                    subscriptionID,
+                options: [
+                    .firesOnRecordCreation,
+                    .firesOnRecordDeletion
+                ]
+            )
+
+        let info =
+            CKSubscription.NotificationInfo()
+
+        info.shouldSendContentAvailable =
+            true
+
+        info.category =
+            "MAP_DRAWING_CHANGED"
+
+        subscription.notificationInfo =
+            info
+
+        do {
+
+            try await database
+                .save(
+                    subscription
+                )
+
+            print(
+                "🔔 Shared map drawing notifications enabled"
+            )
+
+        } catch {
+
+            print(
+                "❌ Shared map drawing subscription failed:",
                 error
             )
         }

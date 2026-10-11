@@ -30,19 +30,32 @@ struct VDOTSnowMapNativeView: View {
     ""
     
     let initialMapNumber: String?
+    let stormID: UUID?
+    let currentUser: AppUser?
+
+    @StateObject private var sharedDrawingStore =
+        SharedMapDrawingStore()
     
     init(
-        initialMapNumber: String? = nil
+        initialMapNumber: String? = nil,
+        stormID: UUID? = nil,
+        currentUser: AppUser? = nil
     ) {
-        
+
         self.initialMapNumber =
-        initialMapNumber
-        
+            initialMapNumber
+
+        self.stormID =
+            stormID
+
+        self.currentUser =
+            currentUser
+
         _selectedMap =
-        State(
-            initialValue:
-                initialMapNumber ?? ""
-        )
+            State(
+                initialValue:
+                    initialMapNumber ?? ""
+            )
     }
     
     private let ahqName =
@@ -148,6 +161,8 @@ struct VDOTSnowMapNativeView: View {
                 VDOTDrawingMapView(
                     routes: routes,
                     mapNumber: loadedMap,
+                    sharedDrawings:
+                        sharedDrawingStore.drawings,
                     drawingEnabled:
                         $drawingEnabled,
                     strokes:
@@ -247,35 +262,52 @@ struct VDOTSnowMapNativeView: View {
                         )
                         
                         Button {
-                            
-                            guard loadedMap.isEmpty == false else {
+
+                            guard
+                                let stormID,
+                                let currentUser,
+                                loadedMap.isEmpty == false
+                            else {
                                 return
                             }
-                            
-                            drawingsByMap[loadedMap] = []
-                            
-                            VDOTDrawingStore
-                                .shared
-                                .save(
-                                    strokes: [],
-                                    ahqName: ahqName,
-                                    mapNumber: loadedMap
-                                )
-                            
+
+                            Task {
+
+                                await sharedDrawingStore
+                                    .clearMyDrawings(
+                                        stormID:
+                                            stormID,
+                                        mapNumber:
+                                            loadedMap,
+                                        user:
+                                            currentUser
+                                    )
+
+                                drawingsByMap[loadedMap] = []
+                            }
+
                         } label: {
-                            
+
                             Label(
-                                "Clear",
-                                systemImage: "trash"
+                                "Clear My Drawing",
+                                systemImage:
+                                    "trash"
                             )
                         }
                         .buttonStyle(
                             .bordered
                         )
                         .disabled(
-                            currentDrawingBinding
-                                .wrappedValue
-                                .isEmpty
+                            sharedDrawingStore
+                                .drawings
+                                .contains {
+                                    $0.stormID ==
+                                        stormID &&
+                                    $0.mapNumber ==
+                                        loadedMap &&
+                                    $0.createdByUserID ==
+                                        currentUser?.id
+                                } == false
                         )
                         
                         Spacer()
@@ -306,24 +338,119 @@ struct VDOTSnowMapNativeView: View {
                 for: .vdotDrawingChanged
             )
         ) { _ in
-            
+
             guard
+                let stormID,
+                let currentUser,
+                loadedMap.isEmpty == false,
+                let latestStroke =
+                    currentDrawingBinding
+                        .wrappedValue
+                        .last
+            else {
+                return
+            }
+
+            let savedCoordinates =
+                latestStroke.coordinates
+                    .map {
+                        SavedCoordinate($0)
+                    }
+
+            Task {
+
+                let saved =
+                    await sharedDrawingStore
+                        .addStroke(
+                            stormID:
+                                stormID,
+                            mapNumber:
+                                loadedMap,
+                            user:
+                                currentUser,
+                            coordinates:
+                                savedCoordinates
+                        )
+
+                if saved {
+
+                    // Remove the temporary local copy.
+                    // The CloudKit shared copy now draws it.
+                    if drawingsByMap[loadedMap]?.isEmpty == false {
+
+                        drawingsByMap[loadedMap]?
+                            .removeLast()
+                    }
+
+                    print(
+                        "☁️ Drawing is now shared:",
+                        loadedMap,
+                        currentUser.name,
+                        currentUser.role.rawValue
+                    )
+                }
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: .mapDrawingChangedNotificationReceived
+            )
+        ) { _ in
+
+            guard
+                let stormID,
                 loadedMap.isEmpty == false
             else {
                 return
             }
-            
-            VDOTDrawingStore
-                .shared
-                .save(
-                    strokes:
-                        currentDrawingBinding
-                        .wrappedValue,
-                    ahqName:
-                        ahqName,
-                    mapNumber:
-                        loadedMap
+
+            Task {
+
+                print(
+                    "🔄 Refreshing shared drawings:",
+                    loadedMap
                 )
+
+                for attempt in 1...4 {
+
+                    let previousCount =
+                        sharedDrawingStore
+                            .drawings
+                            .count
+
+                    await sharedDrawingStore
+                        .sync(
+                            stormID:
+                                stormID,
+                            mapNumber:
+                                loadedMap
+                        )
+
+                    let newCount =
+                        sharedDrawingStore
+                            .drawings
+                            .count
+
+                    print(
+                        "✏️ Shared drawing count:",
+                        newCount,
+                        "attempt:",
+                        attempt
+                    )
+
+                    if newCount != previousCount {
+                        print(
+                            "✅ Shared drawings updated"
+                        )
+                        break
+                    }
+
+                    try? await Task.sleep(
+                        for:
+                            .seconds(2)
+                    )
+                }
+            }
         }
     }
     
@@ -431,13 +558,18 @@ struct VDOTSnowMapNativeView: View {
             loadedMap =
             selectedMap
             
-            drawingsByMap[loadedMap] =
-            VDOTDrawingStore
-                .shared
-                .load(
-                    ahqName: ahqName,
-                    mapNumber: loadedMap
-                )
+            if let stormID {
+
+                await sharedDrawingStore
+                    .sync(
+                        stormID:
+                            stormID,
+                        mapNumber:
+                            selectedMap
+                    )
+            }
+            
+            drawingsByMap[loadedMap] = []
             
             print(
                 "🗺️ Loaded Lake Ridge map",

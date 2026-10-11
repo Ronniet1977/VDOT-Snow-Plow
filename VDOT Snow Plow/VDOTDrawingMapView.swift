@@ -10,6 +10,8 @@ struct VDOTDrawingMapView: UIViewRepresentable {
     
     let routes: [VDOTSnowRoute]
     let mapNumber: String
+    let sharedDrawings:
+        [SharedMapDrawing]
     
     @Binding var drawingEnabled: Bool
     @Binding var strokes: [VDOTDrawingStroke]
@@ -121,6 +123,49 @@ struct VDOTDrawingMapView: UIViewRepresentable {
             mapView.addOverlay(
                 polyline,
                 level: .aboveLabels
+            )
+        }
+        
+        for drawing in sharedDrawings {
+
+            let coordinates =
+                drawing.coordinates
+                    .map {
+                        $0.coordinate
+                    }
+
+            guard coordinates.count > 1
+            else {
+                continue
+            }
+
+            let polyline =
+                MKPolyline(
+                    coordinates:
+                        coordinates,
+                    count:
+                        coordinates.count
+                )
+
+            switch drawing.createdByRole {
+
+            case .driver:
+                polyline.title =
+                    "SHARED_DRIVER"
+
+            case .supervisor:
+                polyline.title =
+                    "SHARED_SUPERVISOR"
+
+            case .admin:
+                polyline.title =
+                    "SHARED_ADMIN"
+            }
+
+            mapView.addOverlay(
+                polyline,
+                level:
+                    .aboveLabels
             )
         }
         
@@ -286,31 +331,55 @@ struct VDOTDrawingMapView: UIViewRepresentable {
                 polyline: polyline
             )
             
-            if polyline.title ==
-                "USER_DRAWING" {
-                
+            switch polyline.title {
+
+            case "USER_DRAWING",
+                 "SHARED_DRIVER":
+
                 renderer.strokeColor =
                     .systemRed
-                
-                renderer.lineWidth =
-                7
-                
-                renderer.lineCap =
-                    .round
-                
-                renderer.lineJoin =
-                    .round
-                
-            } else {
-                
+
+            case "SHARED_SUPERVISOR":
+
+                renderer.strokeColor =
+                    .systemOrange
+
+            case "SHARED_ADMIN":
+
+                renderer.strokeColor =
+                    .systemPurple
+
+            default:
+
                 renderer.strokeColor =
                     .systemBlue
-                
+            }
+
+            if polyline.title ==
+                "USER_DRAWING" ||
+                polyline.title ==
+                "SHARED_DRIVER" ||
+                polyline.title ==
+                "SHARED_SUPERVISOR" ||
+                polyline.title ==
+                "SHARED_ADMIN" {
+
                 renderer.lineWidth =
-                5
-                
+                    7
+
+                renderer.lineCap =
+                    .round
+
+                renderer.lineJoin =
+                    .round
+
+            } else {
+
+                renderer.lineWidth =
+                    5
+
                 renderer.alpha =
-                0.9
+                    0.9
             }
             
             return renderer

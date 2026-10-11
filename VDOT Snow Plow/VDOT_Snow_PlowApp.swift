@@ -20,6 +20,11 @@ struct VDOTSnowPlow: App {
         WindowGroup {
             ContentView()
                 .environmentObject(vm)
+                .task {
+                    await NotificationManager
+                        .shared
+                        .subscribeForSharedMapDrawings()
+                }
         }
     }
 }
