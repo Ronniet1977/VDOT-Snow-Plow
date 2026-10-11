@@ -34,6 +34,7 @@ struct AdminStatusBoardView: View {
     
     let canEdit: Bool
     let supervisorCategory: CrewCategory?
+    let currentUser: AppUser?
     
     @ObservedObject var inspectionStore:
         MapReviewInspectionStore
@@ -549,11 +550,18 @@ struct AdminStatusBoardView: View {
                         },
                         
                         onOpenMap: { mapNumber in
-                            
+
+                            guard let stormID =
+                                stormStore.activeStormID
+                            else {
+                                return
+                            }
+
                             openingMap =
-                            MapNumberSelection(
-                                number: mapNumber
-                            )
+                                MapNumberSelection(
+                                    number: mapNumber,
+                                    stormID: stormID
+                                )
                         },
                         
                         onPush: {
@@ -809,7 +817,11 @@ struct AdminStatusBoardView: View {
                 
                 VDOTSnowMapNativeView(
                     initialMapNumber:
-                        selection.number
+                        selection.number,
+                    stormID:
+                        selection.stormID,
+                    currentUser:
+                        currentUser
                 )
             }
         }
@@ -904,10 +916,11 @@ private struct MapCheckMessage:
 
 private struct MapNumberSelection:
     Identifiable {
-    
+
     let id = UUID()
-    
+
     let number: String
+    let stormID: UUID
 }
 
 private struct NewStormView: View {

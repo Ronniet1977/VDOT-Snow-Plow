@@ -314,6 +314,8 @@ struct AdminTimeHomeView: View {
                                     appleUser?.role == .supervisor
                                     ? appleUser?.category
                                     : nil,
+                                currentUser:
+                                    appleUser,
                                 inspectionStore:
                                     inspectionStore
                             )

@@ -103,53 +103,35 @@ struct VDOTSnowMapNativeView: View {
                             selection:
                                 $selectedMap
                         ) {
-                            
+
                             Text(
                                 "Choose Map"
                             )
                             .tag("")
-                            
+
                             ForEach(
                                 mapNumbers,
                                 id: \.self
                             ) { number in
-                                
+
                                 Text(number)
                                     .tag(number)
                             }
                         }
-                    }
-                    
-                    Button {
-                        
-                        Task {
-                            await loadRoutes()
-                        }
-                        
-                    } label: {
-                        
-                        HStack {
-                            
-                            Spacer()
-                            
-                            if isLoading {
-                                
-                                ProgressView()
-                                    .padding(
-                                        .trailing,
-                                        8
-                                    )
+                        .onChange(
+                            of: selectedMap
+                        ) { _, newValue in
+
+                            guard newValue.isEmpty == false
+                            else {
+                                return
                             }
-                            
-                            Text("Load Map")
-                            
-                            Spacer()
+
+                            Task {
+                                await loadRoutes()
+                            }
                         }
                     }
-                    .disabled(
-                        selectedMap.isEmpty ||
-                        isLoading
-                    )
                 }
             }
             .frame(
@@ -259,6 +241,9 @@ struct VDOTSnowMapNativeView: View {
                         }
                         .buttonStyle(
                             .borderedProminent
+                        )
+                        .tint(
+                            drawButtonColor
                         )
                         
                         Button {
@@ -451,6 +436,24 @@ struct VDOTSnowMapNativeView: View {
                     )
                 }
             }
+        }
+    }
+    
+    private var drawButtonColor: Color {
+
+        switch currentUser?.role {
+
+        case .driver:
+            return .red
+
+        case .supervisor:
+            return .orange
+
+        case .admin:
+            return .purple
+
+        case nil:
+            return .blue
         }
     }
     
