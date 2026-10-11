@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import CoreLocation
+import MapKit
 
 struct DriverHomeView: View {
 
@@ -22,6 +24,15 @@ struct DriverHomeView: View {
         DriverMapAssignmentStore()
     @StateObject private var acknowledgementStore =
         MapAssignmentAcknowledgementStore()
+    @State private var selectedAssignmentID:
+        UUID?
+    @StateObject private var locationManager =
+        DriverLocationManager()
+    @State private var recommendedMap:
+        AssignedMapRouteOption?
+
+    @State private var isFindingClosestMap =
+        false
 
     private var driver: CrewDriver? {
         driverStore.drivers.first {
@@ -56,6 +67,13 @@ struct DriverHomeView: View {
                 }
 
                 if let driver {
+                    currentAssignmentSection(
+                        for: driver
+                    )
+                    
+                    recommendedMapSection(
+                        for: driver
+                    )
 
                     statusSection(
                         for: driver
@@ -101,6 +119,9 @@ struct DriverHomeView: View {
             )
             .task {
 
+                locationManager
+                    .requestLocation()
+
                 if let driver {
 
                     await NotificationManager.shared
@@ -112,18 +133,12 @@ struct DriverHomeView: View {
                         )
                 }
 
-                while !Task.isCancelled {
+                // Initial load only
+                await mapAssignmentStore
+                    .syncFromCloud()
 
-                    await mapAssignmentStore
-                        .syncFromCloud()
-
-                    await acknowledgementStore
-                        .syncFromCloud()
-
-                    try? await Task.sleep(
-                        for: .seconds(5)
-                    )
-                }
+                await acknowledgementStore
+                    .syncFromCloud()
             }
         }
     }
@@ -262,6 +277,378 @@ struct DriverHomeView: View {
                         4
                     )
                 }
+            }
+        }
+    }
+    
+    private func updateRecommendedMap(
+        for driver: CrewDriver
+    ) async {
+
+        guard
+            let currentLocation =
+                locationManager.location
+        else {
+            return
+        }
+
+        let assignments =
+            mapAssignmentStore.assignments
+                .filter {
+                    $0.driverID == driver.id &&
+                    !$0.isCompleted
+                }
+
+        guard assignments.count > 1
+        else {
+            recommendedMap = nil
+            return
+        }
+
+        isFindingClosestMap = true
+
+        var options:
+            [AssignedMapRouteOption] = []
+
+        for assignment in assignments {
+
+            do {
+
+                let routes =
+                    try await
+                        VDOTSnowRouteService
+                            .shared
+                            .fetchRoutes(
+                                ahqName:
+                                    "Lake Ridge",
+                                mapNumber:
+                                    assignment.mapNumber,
+                                limit:
+                                    1000
+                            )
+
+                guard
+                    let destination =
+                        AssignedMapRoutingService
+                            .shared
+                            .startCoordinate(
+                                for:
+                                    routes
+                            )
+                else {
+                    continue
+                }
+
+                let option =
+                    try await
+                        AssignedMapRoutingService
+                            .shared
+                            .drivingOption(
+                                mapNumber:
+                                    assignment.mapNumber,
+                                destination:
+                                    destination,
+                                from:
+                                    currentLocation.coordinate
+                            )
+
+                options.append(
+                    option
+                )
+
+            } catch {
+
+                print(
+                    "❌ Route comparison failed for map",
+                    assignment.mapNumber,
+                    error
+                )
+            }
+        }
+
+        recommendedMap =
+            AssignedMapRoutingService
+                .shared
+                .sortByClosest(
+                    options
+                )
+                .first
+
+        if let recommendedMap {
+
+            print(
+                "🚜 Closest assigned map:",
+                recommendedMap.mapNumber,
+                String(
+                    format:
+                        "%.1f miles",
+                    recommendedMap.distanceMiles
+                ),
+                "\(recommendedMap.travelMinutes) min"
+            )
+        }
+
+        isFindingClosestMap = false
+    }
+    
+    private func recommendedMapSection(
+        for driver: CrewDriver
+    ) -> some View {
+
+        Section(
+            "Recommended Next"
+        ) {
+
+            if isFindingClosestMap {
+
+                HStack {
+
+                    ProgressView()
+
+                    Text(
+                        "Finding closest assigned map..."
+                    )
+                    .foregroundStyle(
+                        .secondary
+                    )
+                }
+
+            } else if let recommendedMap {
+
+                VStack(
+                    alignment: .leading,
+                    spacing: 8
+                ) {
+
+                    Text(
+                        "Map \(recommendedMap.mapNumber)"
+                    )
+                    .font(
+                        .title3.bold()
+                    )
+
+                    Text(
+                        String(
+                            format:
+                                "%.1f miles • %d min",
+                            recommendedMap.distanceMiles,
+                            recommendedMap.travelMinutes
+                        )
+                    )
+                    .foregroundStyle(
+                        .secondary
+                    )
+
+                    Button {
+
+                        openRecommendedMap(
+                            recommendedMap
+                        )
+
+                    } label: {
+
+                        Label(
+                            "Navigate to Map \(recommendedMap.mapNumber)",
+                            systemImage:
+                                "location.fill"
+                        )
+                    }
+                    .buttonStyle(
+                        .borderedProminent
+                    )
+                    
+                    Button {
+
+                        Task {
+
+                            locationManager
+                                .requestLocation()
+
+                            try? await Task.sleep(
+                                for: .seconds(1)
+                            )
+
+                            await updateRecommendedMap(
+                                for: driver
+                            )
+                        }
+
+                    } label: {
+
+                        Label(
+                            self.recommendedMap == nil
+                                ? "Find Closest Map"
+                                : "Recalculate Closest Map",
+                            systemImage:
+                                "location.magnifyingglass"
+                        )
+                    }
+                    .buttonStyle(
+                        .bordered
+                    )
+                }
+                .padding(
+                    .vertical,
+                    4
+                )
+
+            } else {
+
+                Text(
+                    "No recommendation available"
+                )
+                .foregroundStyle(
+                    .secondary
+                )
+            }
+        }
+    }
+    
+    private func openRecommendedMap(
+        _ option: AssignedMapRouteOption
+    ) {
+
+        let mapItem =
+            MKMapItem(
+                location:
+                    CLLocation(
+                        latitude:
+                            option.coordinate.latitude,
+                        longitude:
+                            option.coordinate.longitude
+                    ),
+                address:
+                    nil
+            )
+
+        mapItem.name =
+            "Snow Map \(option.mapNumber)"
+
+        mapItem.openInMaps(
+            launchOptions: [
+                MKLaunchOptionsDirectionsModeKey:
+                    MKLaunchOptionsDirectionsModeDriving
+            ]
+        )
+    }
+    
+    private func currentAssignmentSection(
+        for driver: CrewDriver
+    ) -> some View {
+
+        let assignments =
+            mapAssignmentStore.assignments
+                .filter {
+                    $0.driverID == driver.id &&
+                    !$0.isCompleted
+                }
+                .sorted {
+                    $0.assignedAt < $1.assignedAt
+                }
+        
+        let selectedAssignment =
+            assignments.first {
+                $0.id == selectedAssignmentID
+            }
+            ?? assignments.first
+
+        return Section(
+            "Current Assignment"
+        ) {
+
+            if let assignment =
+                selectedAssignment {
+
+                VStack(
+                    alignment: .leading,
+                    spacing: 8
+                ) {
+
+                    Text(
+                        "Map \(assignment.mapNumber)"
+                    )
+                    .font(
+                        .title3.bold()
+                    )
+                    
+                    if assignments.count > 1 {
+
+                        Picker(
+                            "Assigned Map",
+                            selection:
+                                Binding(
+                                    get: {
+                                        selectedAssignmentID
+                                            ?? assignment.id
+                                    },
+                                    set: {
+                                        selectedAssignmentID =
+                                            $0
+                                    }
+                                )
+                        ) {
+
+                            ForEach(
+                                assignments
+                            ) { item in
+
+                                Text(
+                                    "Map \(item.mapNumber)"
+                                )
+                                .tag(
+                                    item.id
+                                )
+                            }
+                        }
+                        .pickerStyle(
+                            .segmented
+                        )
+                    }
+
+                    Text(
+                        assignment.assignedAt.formatted(
+                            date: .abbreviated,
+                            time: .shortened
+                        )
+                    )
+                    .foregroundStyle(
+                        .secondary
+                    )
+                    
+                    AssignedMapPreviewView(
+                        mapNumber:
+                            assignment.mapNumber
+                    )
+
+                    NavigationLink {
+
+                        VDOTSnowMapNativeView(
+                            initialMapNumber:
+                                assignment.mapNumber
+                        )
+
+                    } label: {
+
+                        Label(
+                            "Open Snow Map",
+                            systemImage:
+                                "map.fill"
+                        )
+                    }
+                }
+                .padding(
+                    .vertical,
+                    4
+                )
+
+            } else {
+
+                Text(
+                    "No active assignment"
+                )
+                .foregroundStyle(
+                    .secondary
+                )
             }
         }
     }

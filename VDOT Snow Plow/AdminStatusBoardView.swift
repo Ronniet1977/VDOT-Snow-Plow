@@ -681,14 +681,43 @@ struct AdminStatusBoardView: View {
             Task {
 
                 print(
-                    "🔄 Refreshing map acknowledgements"
+                    "🔄 Refreshing map acknowledgements after push"
                 )
 
-                await acknowledgementStore
-                    .syncFromCloud()
+                let previousCount =
+                    acknowledgementStore
+                        .acknowledgements
+                        .count
 
-                await mapAssignmentStore
-                    .syncFromCloud()
+                for attempt in 1...4 {
+
+                    await acknowledgementStore
+                        .syncFromCloud()
+
+                    await mapAssignmentStore
+                        .syncFromCloud()
+
+                    if acknowledgementStore
+                        .acknowledgements
+                        .count > previousCount {
+
+                        print(
+                            "✅ New acknowledgement found on attempt",
+                            attempt
+                        )
+
+                        break
+                    }
+
+                    print(
+                        "⏳ Acknowledgement not visible yet, attempt",
+                        attempt
+                    )
+
+                    try? await Task.sleep(
+                        for: .seconds(2)
+                    )
+                }
             }
         }
         .sheet(

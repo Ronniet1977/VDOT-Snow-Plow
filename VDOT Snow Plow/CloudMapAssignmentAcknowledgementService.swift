@@ -59,7 +59,9 @@ final class CloudMapAssignmentAcknowledgementService {
 
         print(
             "☁️ Map acknowledgement uploaded:",
-            acknowledgement.mapNumber
+            acknowledgement.mapNumber,
+            "record:",
+            record.recordID.recordName
         )
     }
 

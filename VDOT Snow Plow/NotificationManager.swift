@@ -249,7 +249,7 @@ final class NotificationManager {
     func subscribeForMapAcknowledgements() async {
 
         let subscriptionID =
-            "MapAcknowledgementSubscriptionV2"
+            "MapAcknowledgementSubscriptionV3"
 
         do {
 
@@ -267,7 +267,7 @@ final class NotificationManager {
         } catch let error as CKError
         where error.code == .unknownItem {
 
-            // Create below.
+            // Subscription does not exist yet.
 
         } catch {
 
@@ -294,29 +294,30 @@ final class NotificationManager {
                 ]
             )
 
-        let notificationInfo =
+        let info =
             CKSubscription.NotificationInfo()
 
-        notificationInfo.alertBody =
+        info.alertBody =
             "A driver acknowledged a map assignment."
 
-        notificationInfo.soundName =
+        info.soundName =
             "default"
 
-        notificationInfo.shouldSendContentAvailable =
+        info.shouldSendContentAvailable =
             true
 
-        notificationInfo.desiredKeys = [
+        info.desiredKeys = [
+            "assignmentID",
             "driverID",
             "mapNumber",
             "acknowledgedAt"
         ]
 
-        notificationInfo.category =
+        info.category =
             "MAP_ACKNOWLEDGED"
 
         subscription.notificationInfo =
-            notificationInfo
+            info
 
         do {
 
@@ -332,6 +333,216 @@ final class NotificationManager {
 
             print(
                 "❌ Map acknowledgement subscription failed:",
+                error
+            )
+        }
+    }
+    
+    func subscribeForUserChanges(
+        appleUserID: String
+    ) async {
+
+        let subscriptionID =
+            "AppUserChange-\(appleUserID)"
+
+        do {
+
+            _ = try await database
+                .subscription(
+                    for: subscriptionID
+                )
+
+            print(
+                "🔔 User change subscription already exists"
+            )
+
+            return
+
+        } catch let error as CKError
+        where error.code == .unknownItem {
+
+            // Create below.
+
+        } catch {
+
+            print(
+                "❌ User change subscription check failed:",
+                error
+            )
+
+            return
+        }
+
+        let predicate =
+            NSPredicate(
+                format:
+                    "appleUserID == %@",
+                appleUserID
+            )
+
+        let subscription =
+            CKQuerySubscription(
+                recordType:
+                    "AppUser",
+                predicate:
+                    predicate,
+                subscriptionID:
+                    subscriptionID,
+                options: [
+                    .firesOnRecordUpdate
+                ]
+            )
+
+        let info =
+            CKSubscription.NotificationInfo()
+
+        info.alertBody =
+            "Your app access has been updated."
+
+        info.soundName =
+            "default"
+
+        info.shouldSendContentAvailable =
+            true
+
+        info.category =
+            "USER_ROLE_CHANGED"
+
+        subscription.notificationInfo =
+            info
+
+        do {
+
+            try await database.save(
+                subscription
+            )
+
+            print(
+                "🔔 User role change notifications enabled"
+            )
+
+        } catch {
+
+            print(
+                "❌ User role subscription failed:",
+                error
+            )
+        }
+    }
+    
+    func resetAllSubscriptions() async {
+
+        do {
+
+            let subscriptions =
+                try await database
+                    .allSubscriptions()
+
+            print(
+                "🧹 Found subscriptions:",
+                subscriptions.map {
+                    $0.subscriptionID
+                }
+            )
+
+            for subscription in subscriptions {
+
+                _ = try await database
+                    .deleteSubscription(
+                        withID:
+                            subscription.subscriptionID
+                    )
+
+                print(
+                    "🗑️ Deleted subscription:",
+                    subscription.subscriptionID
+                )
+            }
+
+            print(
+                "✅ CloudKit subscriptions reset"
+            )
+
+        } catch {
+
+            print(
+                "❌ Subscription reset failed:",
+                error
+            )
+        }
+    }
+    
+    func printSubscriptions() async {
+
+        do {
+
+            let subscriptions =
+                try await database
+                    .allSubscriptions()
+
+            print("🔎 CLOUDKIT SUBSCRIPTIONS:")
+
+            for subscription in subscriptions {
+
+                if let query =
+                    subscription
+                        as? CKQuerySubscription {
+
+                    print(
+                        "🔎 ID:",
+                        query.subscriptionID
+                    )
+
+                    print(
+                        "🔎 RECORD TYPE:",
+                        query.recordType
+                    )
+
+                    print(
+                        "🔎 CATEGORY:",
+                        query.notificationInfo?
+                            .category
+                            ?? "none"
+                    )
+
+                } else {
+
+                    print(
+                        "🔎 ID:",
+                        subscription.subscriptionID,
+                        "not query subscription"
+                    )
+                }
+            }
+
+        } catch {
+
+            print(
+                "❌ Could not read subscriptions:",
+                error
+            )
+        }
+    }
+    
+    func printCloudKitUser(
+        label: String
+    ) async {
+
+        do {
+
+            let userID =
+                try await CKContainer.default()
+                    .userRecordID()
+
+            print(
+                "👤 \(label) CloudKit user:",
+                userID.recordName
+            )
+
+        } catch {
+
+            print(
+                "❌ CloudKit user lookup failed:",
                 error
             )
         }

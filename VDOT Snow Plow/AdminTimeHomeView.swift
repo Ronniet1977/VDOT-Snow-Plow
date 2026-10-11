@@ -1,4 +1,5 @@
 import SwiftUI
+import CloudKit
 
 struct AdminTimeHomeView: View {
     
@@ -74,19 +75,31 @@ struct AdminTimeHomeView: View {
         }
         .task(id: appleUser?.id) {
 
-            guard appleUser?.role == .admin
-            else {
+            guard let appleUser else {
                 return
             }
 
             await NotificationManager.shared
                 .requestPermission()
 
-            await NotificationManager.shared
-                .subscribeForAccessRequests()
+            if let appleUserID =
+                appleUser.appleUserID {
 
-            await NotificationManager.shared
-                .subscribeForMapAcknowledgements()
+                await NotificationManager.shared
+                    .subscribeForUserChanges(
+                        appleUserID:
+                            appleUserID
+                    )
+            }
+
+            if appleUser.role == .admin {
+
+                await NotificationManager.shared
+                    .subscribeForAccessRequests()
+
+                await NotificationManager.shared
+                    .subscribeForMapAcknowledgements()
+            }
         }
         .onReceive(
             NotificationCenter.default.publisher(
@@ -114,6 +127,48 @@ struct AdminTimeHomeView: View {
 
                         break
                     }
+
+                    try? await Task.sleep(
+                        for: .seconds(2)
+                    )
+                }
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for:
+                    .userRoleChangedNotificationReceived
+            )
+        ) { _ in
+
+            Task {
+
+                print(
+                    "🔄 Refreshing user after role change"
+                )
+
+                let oldRole =
+                    appleUser?.role
+
+                for attempt in 1...4 {
+
+                    await userStore
+                        .syncFromCloud()
+
+                    if appleUser?.role != oldRole {
+
+                        print(
+                            "✅ User role changed on attempt",
+                            attempt
+                        )
+
+                        break
+                    }
+
+                    print(
+                        "⏳ Role change not visible yet, attempt",
+                        attempt
+                    )
 
                     try? await Task.sleep(
                         for: .seconds(2)

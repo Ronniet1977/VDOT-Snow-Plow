@@ -7,6 +7,7 @@
 
 import UIKit
 import UserNotifications
+import CloudKit
 
 final class AppDelegate:
     NSObject,
@@ -28,6 +29,8 @@ final class AppDelegate:
 
         return true
     }
+    
+    // willPresent
 
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
@@ -38,8 +41,38 @@ final class AppDelegate:
             notification.request
                 .content
                 .categoryIdentifier
+        
+        let userInfo =
+            notification.request
+                .content
+                .userInfo
 
-        if category == "MAP_ACKNOWLEDGED" {
+        if let cloudNotification =
+            CKNotification(
+                fromRemoteNotificationDictionary:
+                    userInfo
+            ),
+           let queryNotification =
+            cloudNotification
+                as? CKQueryNotification {
+
+            print(
+                "☁️ PUSH RECORD ID:",
+                queryNotification.recordID?
+                    .recordName
+                    ?? "none"
+            )
+
+            print(
+                "☁️ PUSH REASON:",
+                queryNotification.queryNotificationReason
+                    .rawValue
+            )
+        }
+
+        switch category {
+
+        case "MAP_ACKNOWLEDGED":
 
             print(
                 "📩 Map acknowledgement push received"
@@ -52,13 +85,50 @@ final class AppDelegate:
                     nil
             )
 
-        } else {
+        case "MAP_ASSIGNED":
+
+            print(
+                "📩 Map assignment push received"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapAssignmentNotificationReceived,
+                object:
+                    nil
+            )
+
+        case "ACCESS_REQUEST":
+
+            print(
+                "📩 Access request push received"
+            )
 
             NotificationCenter.default.post(
                 name:
                     .accessRequestNotificationReceived,
                 object:
                     nil
+            )
+            
+        case "USER_ROLE_CHANGED":
+
+            print(
+                "📩 User role change push received"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .userRoleChangedNotificationReceived,
+                object:
+                    nil
+            )
+
+        default:
+
+            print(
+                "📩 Unknown notification category:",
+                category
             )
         }
 
@@ -68,6 +138,8 @@ final class AppDelegate:
             .badge
         ]
     }
+    
+    // notification-tap handler
 
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
@@ -80,7 +152,13 @@ final class AppDelegate:
                 .content
                 .categoryIdentifier
 
-        if category == "MAP_ACKNOWLEDGED" {
+        switch category {
+
+        case "MAP_ACKNOWLEDGED":
+
+            print(
+                "📩 Tapped map acknowledgement notification"
+            )
 
             NotificationCenter.default.post(
                 name:
@@ -89,13 +167,50 @@ final class AppDelegate:
                     nil
             )
 
-        } else {
+        case "MAP_ASSIGNED":
+
+            print(
+                "📩 Tapped map assignment notification"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapAssignmentNotificationReceived,
+                object:
+                    nil
+            )
+
+        case "ACCESS_REQUEST":
+
+            print(
+                "📩 Tapped access request notification"
+            )
 
             NotificationCenter.default.post(
                 name:
                     .accessRequestNotificationReceived,
                 object:
                     nil
+            )
+            
+        case "USER_ROLE_CHANGED":
+
+            print(
+                "📩 Tapped user role change notification"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .userRoleChangedNotificationReceived,
+                object:
+                    nil
+            )
+
+        default:
+
+            print(
+                "📩 Tapped unknown notification category:",
+                category
             )
         }
     }
@@ -132,23 +247,84 @@ final class AppDelegate:
         )
     }
     
+    // background remote-notification switch
     func application(
         _ application: UIApplication,
-        didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+        didReceiveRemoteNotification userInfo:
+            [AnyHashable: Any],
         fetchCompletionHandler completionHandler:
             @escaping (UIBackgroundFetchResult) -> Void
     ) {
 
-        print(
-            "📩 Remote notification received"
-        )
+        let aps =
+            userInfo["aps"]
+                as? [String: Any]
 
-        NotificationCenter.default.post(
-            name:
-                .accessRequestNotificationReceived,
-            object:
-                nil
-        )
+        let category =
+            aps?["category"]
+                as? String
+
+        switch category {
+
+        case "MAP_ACKNOWLEDGED":
+
+            print(
+                "📩 Background map acknowledgement push"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapAcknowledgementNotificationReceived,
+                object:
+                    nil
+            )
+
+        case "MAP_ASSIGNED":
+
+            print(
+                "📩 Background map assignment push"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapAssignmentNotificationReceived,
+                object:
+                    nil
+            )
+
+        case "ACCESS_REQUEST":
+
+            print(
+                "📩 Background access request push"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .accessRequestNotificationReceived,
+                object:
+                    nil
+            )
+            
+        case "USER_ROLE_CHANGED":
+
+            print(
+                "📩 Background user role change push"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .userRoleChangedNotificationReceived,
+                object:
+                    nil
+            )
+
+        default:
+
+            print(
+                "📩 Background unknown notification category:",
+                category ?? "none"
+            )
+        }
 
         completionHandler(
             .newData
@@ -162,9 +338,19 @@ extension Notification.Name {
         Notification.Name(
             "accessRequestNotificationReceived"
         )
-    
+
     static let mapAcknowledgementNotificationReceived =
         Notification.Name(
             "mapAcknowledgementNotificationReceived"
+        )
+
+    static let mapAssignmentNotificationReceived =
+        Notification.Name(
+            "mapAssignmentNotificationReceived"
+        )
+    
+    static let userRoleChangedNotificationReceived =
+        Notification.Name(
+            "userRoleChangedNotificationReceived"
         )
 }
