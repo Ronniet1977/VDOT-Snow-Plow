@@ -33,9 +33,26 @@ struct DriverHomeView: View {
 
     @State private var isFindingClosestMap =
         false
+    @StateObject private var reviewRequestStore =
+        MapReviewRequestStore()
 
     private var driver: CrewDriver? {
-        driverStore.drivers.first {
+
+        if let driverID =
+            user.driverID {
+
+            if let linked =
+                driverStore.drivers.first(
+                    where: {
+                        $0.id == driverID
+                    }
+                ) {
+
+                return linked
+            }
+        }
+
+        return driverStore.drivers.first {
             $0.name == user.name
         }
     }
@@ -138,6 +155,9 @@ struct DriverHomeView: View {
                     .syncFromCloud()
 
                 await acknowledgementStore
+                    .syncFromCloud()
+                
+                await reviewRequestStore
                     .syncFromCloud()
             }
         }
@@ -269,6 +289,50 @@ struct DriverHomeView: View {
                             }
                             .buttonStyle(
                                 .borderedProminent
+                            )
+                        }
+                        
+                        if reviewRequestStore
+                            .hasRequestedReview(
+                                assignmentID:
+                                    assignment.id
+                            ) {
+
+                            Label(
+                                "Supervisor check requested",
+                                systemImage:
+                                    "person.badge.clock"
+                            )
+                            .font(
+                                .caption
+                            )
+                            .foregroundStyle(
+                                .orange
+                            )
+
+                        } else {
+
+                            Button {
+
+                                Task {
+
+                                    await reviewRequestStore
+                                        .requestReview(
+                                            assignment:
+                                                assignment
+                                        )
+                                }
+
+                            } label: {
+
+                                Label(
+                                    "Request Supervisor Check",
+                                    systemImage:
+                                        "person.badge.shield.checkmark"
+                                )
+                            }
+                            .buttonStyle(
+                                .bordered
                             )
                         }
                     }
@@ -413,50 +477,62 @@ struct DriverHomeView: View {
                     )
                 }
 
-            } else if let recommendedMap {
+            } else {
 
                 VStack(
                     alignment: .leading,
                     spacing: 8
                 ) {
 
-                    Text(
-                        "Map \(recommendedMap.mapNumber)"
-                    )
-                    .font(
-                        .title3.bold()
-                    )
+                    if let recommendedMap {
 
-                    Text(
-                        String(
-                            format:
-                                "%.1f miles • %d min",
-                            recommendedMap.distanceMiles,
-                            recommendedMap.travelMinutes
+                        Text(
+                            "Map \(recommendedMap.mapNumber)"
                         )
-                    )
-                    .foregroundStyle(
-                        .secondary
-                    )
-
-                    Button {
-
-                        openRecommendedMap(
-                            recommendedMap
+                        .font(
+                            .title3.bold()
                         )
 
-                    } label: {
+                        Text(
+                            String(
+                                format:
+                                    "%.1f miles • %d min",
+                                recommendedMap.distanceMiles,
+                                recommendedMap.travelMinutes
+                            )
+                        )
+                        .foregroundStyle(
+                            .secondary
+                        )
 
-                        Label(
-                            "Navigate to Map \(recommendedMap.mapNumber)",
-                            systemImage:
-                                "location.fill"
+                        Button {
+
+                            openRecommendedMap(
+                                recommendedMap
+                            )
+
+                        } label: {
+
+                            Label(
+                                "Navigate to Map \(recommendedMap.mapNumber)",
+                                systemImage:
+                                    "location.fill"
+                            )
+                        }
+                        .buttonStyle(
+                            .borderedProminent
+                        )
+
+                    } else {
+
+                        Text(
+                            "Tap below to find the closest assigned map."
+                        )
+                        .foregroundStyle(
+                            .secondary
                         )
                     }
-                    .buttonStyle(
-                        .borderedProminent
-                    )
-                    
+
                     Button {
 
                         Task {
@@ -490,15 +566,6 @@ struct DriverHomeView: View {
                 .padding(
                     .vertical,
                     4
-                )
-
-            } else {
-
-                Text(
-                    "No recommendation available"
-                )
-                .foregroundStyle(
-                    .secondary
                 )
             }
         }

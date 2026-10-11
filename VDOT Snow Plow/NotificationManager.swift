@@ -430,6 +430,184 @@ final class NotificationManager {
         }
     }
     
+    func subscribeForMapReviewRequests() async {
+
+        let subscriptionID =
+            "MapReviewRequestSubscriptionV1"
+
+        do {
+
+            _ = try await database
+                .subscription(
+                    for: subscriptionID
+                )
+
+            print(
+                "🔔 Map review request subscription already exists"
+            )
+
+            return
+
+        } catch let error as CKError
+        where error.code == .unknownItem {
+
+            // Create below.
+
+        } catch {
+
+            print(
+                "❌ Map review subscription check failed:",
+                error
+            )
+
+            return
+        }
+
+        let subscription =
+            CKQuerySubscription(
+                recordType:
+                    "MapReviewRequest",
+                predicate:
+                    NSPredicate(
+                        value: true
+                    ),
+                subscriptionID:
+                    subscriptionID,
+                options: [
+                    .firesOnRecordCreation
+                ]
+            )
+
+        let info =
+            CKSubscription.NotificationInfo()
+
+        info.alertBody =
+            "A snow map needs a supervisor check."
+
+        info.soundName =
+            "default"
+
+        info.shouldSendContentAvailable =
+            true
+
+        info.desiredKeys = [
+            "assignmentID",
+            "driverID",
+            "mapNumber",
+            "requestedAt",
+            "status"
+        ]
+
+        info.category =
+            "MAP_REVIEW_REQUEST"
+
+        subscription.notificationInfo =
+            info
+
+        do {
+
+            try await database.save(
+                subscription
+            )
+
+            print(
+                "🔔 Supervisor map review notifications enabled"
+            )
+
+        } catch {
+
+            print(
+                "❌ Map review notification subscription failed:",
+                error
+            )
+        }
+    }
+    
+    func subscribeForMapReviewInspections() async {
+
+        let subscriptionID =
+            "MapReviewInspectionSubscriptionV1"
+
+        do {
+
+            _ = try await database
+                .subscription(
+                    for: subscriptionID
+                )
+
+            print(
+                "🔔 Map review inspection subscription already exists"
+            )
+
+            return
+
+        } catch let error as CKError
+        where error.code == .unknownItem {
+
+            // Create below.
+
+        } catch {
+
+            print(
+                "❌ Map review inspection subscription check failed:",
+                error
+            )
+
+            return
+        }
+
+        let subscription =
+            CKQuerySubscription(
+                recordType:
+                    "MapReviewInspection",
+                predicate:
+                    NSPredicate(
+                        value: true
+                    ),
+                subscriptionID:
+                    subscriptionID,
+                options: [
+                    .firesOnRecordCreation
+                ]
+            )
+
+        let info =
+            CKSubscription.NotificationInfo()
+
+        info.alertBody =
+            "A supervisor updated a map check."
+
+        info.soundName =
+            "default"
+
+        info.shouldSendContentAvailable =
+            true
+
+        info.category =
+            "MAP_REVIEW_INSPECTION"
+
+        subscription.notificationInfo =
+            info
+
+        do {
+
+            try await database.save(
+                subscription
+            )
+
+            print(
+                "🔔 Admin map review inspection notifications enabled"
+            )
+
+        } catch {
+
+            print(
+                "❌ Map review inspection notification subscription failed:",
+                error
+            )
+        }
+    }
+    
     func resetAllSubscriptions() async {
 
         do {

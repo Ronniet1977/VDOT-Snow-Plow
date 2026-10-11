@@ -203,5 +203,51 @@ final class DriverMapAssignmentStore: ObservableObject {
             )
         }
     }
+    
+    func reassignDriver(
+        from oldDriverID: UUID,
+        to newDriverID: UUID
+    ) async {
+
+        for index in assignments.indices {
+
+            guard
+                assignments[index].driverID ==
+                    oldDriverID
+            else {
+                continue
+            }
+
+            assignments[index].driverID =
+                newDriverID
+
+            let updated =
+                assignments[index]
+
+            do {
+
+                try await cloud
+                    .saveAssignment(
+                        updated
+                    )
+
+                print(
+                    "🔄 Reassigned map",
+                    updated.mapNumber,
+                    "to new driver ID"
+                )
+
+            } catch {
+
+                print(
+                    "❌ Map reassignment failed:",
+                    updated.mapNumber,
+                    error
+                )
+            }
+        }
+
+        save()
+    }
 }
 

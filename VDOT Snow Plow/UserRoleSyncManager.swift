@@ -37,23 +37,18 @@ final class UserRoleSyncManager {
                 driverStore.drivers.first(
                     where: {
                         $0.id ==
-                            oldUser?.driverID ||
-                        $0.name
-                            .localizedCaseInsensitiveCompare(
-                                oldUser?.name ?? ""
-                            )
-                        ==
-                        .orderedSame
+                            oldUser?.driverID
                     }
                 ) {
 
-                driverStore.delete(
-                    driver
+                driverStore.setActive(
+                    driver,
+                    active: false
                 )
             }
 
             updatedUser.driverID =
-                nil
+                oldUser?.driverID
         }
 
         if oldRole == .supervisor &&
@@ -90,6 +85,11 @@ final class UserRoleSyncManager {
 
                 updatedUser.driverID =
                     existing.id
+
+                driverStore.setActive(
+                    existing,
+                    active: true
+                )
 
             } else {
 

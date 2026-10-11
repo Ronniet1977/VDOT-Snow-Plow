@@ -53,20 +53,57 @@ struct AssignMapView: View {
                 }
                 
                 Section("VDOT Snow Map") {
-                    
-                    Picker(
-                        "Map",
-                        selection:
-                            $selectedMap
-                    ) {
-                        
-                        ForEach(
+
+                    NavigationLink {
+
+                        List(
                             mapNumbers,
                             id: \.self
                         ) { number in
-                            
-                            Text(number)
-                                .tag(number)
+
+                            Button {
+
+                                selectedMap =
+                                    number
+
+                            } label: {
+
+                                HStack {
+
+                                    Text(number)
+
+                                    Spacer()
+
+                                    if selectedMap ==
+                                        number {
+
+                                        Image(
+                                            systemName:
+                                                "checkmark"
+                                        )
+                                    }
+                                }
+                            }
+                            .buttonStyle(
+                                .plain
+                            )
+                        }
+                        .navigationTitle(
+                            "Select Map"
+                        )
+
+                    } label: {
+
+                        HStack {
+
+                            Text("Map")
+
+                            Spacer()
+
+                            Text(selectedMap)
+                                .foregroundStyle(
+                                    .secondary
+                                )
                         }
                     }
                 }

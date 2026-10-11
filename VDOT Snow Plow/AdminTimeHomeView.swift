@@ -15,6 +15,10 @@ struct AdminTimeHomeView: View {
         UserAccessRequestStore()
     @StateObject private var appleAccountStore =
         AppleAccountStore()
+    @StateObject private var reviewRequestStore =
+        MapReviewRequestStore()
+    @StateObject private var inspectionStore =
+        MapReviewInspectionStore()
     
     private var appleUser: AppUser? {
         appleAccountStore.matchingUser(
@@ -59,6 +63,7 @@ struct AdminTimeHomeView: View {
                 )
             }
         }
+        // main startup task
         .task {
 
             await driverStore
@@ -72,8 +77,17 @@ struct AdminTimeHomeView: View {
 
             await requestStore
                 .syncFromCloud()
+            
+            await reviewRequestStore
+                .syncFromCloud()
+            
+            await inspectionStore
+                .syncFromCloud()
         }
-        .task(id: appleUser?.id) {
+        .task(
+            id:
+                "\(appleUser?.id.uuidString ?? "none")-\(appleUser?.role.rawValue ?? "none")"
+        ) {
 
             guard let appleUser else {
                 return
@@ -99,6 +113,15 @@ struct AdminTimeHomeView: View {
 
                 await NotificationManager.shared
                     .subscribeForMapAcknowledgements()
+
+                await NotificationManager.shared
+                    .subscribeForMapReviewInspections()
+            }
+
+            if appleUser.role == .supervisor {
+
+                await NotificationManager.shared
+                    .subscribeForMapReviewRequests()
             }
         }
         .onReceive(
@@ -176,6 +199,98 @@ struct AdminTimeHomeView: View {
                 }
             }
         }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for:
+                    .mapReviewRequestNotificationReceived
+            )
+        ) { _ in
+
+            Task {
+
+                print(
+                    "🔄 Refreshing supervisor review requests"
+                )
+
+                let previousCount =
+                    reviewRequestStore
+                        .requests
+                        .count
+
+                for attempt in 1...4 {
+
+                    await reviewRequestStore
+                        .syncFromCloud()
+
+                    if reviewRequestStore
+                        .requests
+                        .count > previousCount {
+
+                        print(
+                            "✅ New map review request found on attempt",
+                            attempt
+                        )
+
+                        break
+                    }
+
+                    print(
+                        "⏳ Review request not visible yet, attempt",
+                        attempt
+                    )
+
+                    try? await Task.sleep(
+                        for: .seconds(2)
+                    )
+                }
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for:
+                    .mapReviewInspectionNotificationReceived
+            )
+        ) { _ in
+
+            Task {
+
+                print(
+                    "🔄 Refreshing admin map inspections"
+                )
+
+                let previousCount =
+                    inspectionStore
+                        .inspections
+                        .count
+
+                for attempt in 1...4 {
+
+                    await inspectionStore
+                        .syncFromCloud()
+
+                    if inspectionStore
+                        .inspections
+                        .count > previousCount {
+
+                        print(
+                            "✅ New map inspection found on attempt",
+                            attempt
+                        )
+
+                        break
+                    }
+
+                    print(
+                        "⏳ Map inspection not visible yet, attempt",
+                        attempt
+                    )
+
+                    try? await Task.sleep(
+                        for: .seconds(2)
+                    )
+                }
+            }
+        }
     }
         
     @ViewBuilder
@@ -189,24 +304,48 @@ struct AdminTimeHomeView: View {
                     
                     if appleUser?.role == .admin ||
                         appleUser?.role == .supervisor {
-
+                        
                         NavigationLink {
-
+                            
                             AdminStatusBoardView(
                                 driverStore: driverStore,
                                 canEdit: appleUser?.role == .admin,
                                 supervisorCategory:
                                     appleUser?.role == .supervisor
                                     ? appleUser?.category
-                                    : nil
+                                    : nil,
+                                inspectionStore:
+                                    inspectionStore
                             )
-
+                            
                         } label: {
-
+                            
                             Label(
                                 "Status Board",
                                 systemImage:
                                     "clock.arrow.circlepath"
+                            )
+                        }
+                    }
+                    
+                    if let appleUser,
+                       appleUser.role == .supervisor {
+                        
+                        NavigationLink {
+                            
+                            SupervisorMapReviewView(
+                                reviewRequestStore:
+                                    reviewRequestStore,
+                                supervisorUser:
+                                    appleUser
+                            )
+                            
+                        } label: {
+                            
+                            Label(
+                                "Pending Map Checks",
+                                systemImage:
+                                    "checklist"
                             )
                         }
                     }

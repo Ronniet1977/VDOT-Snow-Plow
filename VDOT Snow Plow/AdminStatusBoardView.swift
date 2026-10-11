@@ -35,8 +35,12 @@ struct AdminStatusBoardView: View {
     let canEdit: Bool
     let supervisorCategory: CrewCategory?
     
+    @ObservedObject var inspectionStore:
+        MapReviewInspectionStore
+    
     @StateObject private var statusStore =
     DriverStatusStore()
+    
     
     @State private var historyDriver:
     CrewDriver?
@@ -589,7 +593,9 @@ struct AdminStatusBoardView: View {
                                     driverID:
                                         driver.id
                                 )
-                        }
+                        },
+                        inspections:
+                            inspectionStore.inspections
                     )
                     
                     if canEdit {
@@ -967,6 +973,9 @@ private struct DriverStatusCard: View {
     let onOffDuty:
     () -> Void
     
+    let inspections:
+        [MapReviewInspection]
+    
     private var elapsedHours:
     Double {
         
@@ -1079,7 +1088,7 @@ private struct DriverStatusCard: View {
                                 Label(
                                     "Assign Map",
                                     systemImage:
-                                        "map.badge.plus"
+                                        "map.fill"
                                 )
                             }
                             .buttonStyle(.bordered)
@@ -1137,6 +1146,28 @@ private struct DriverStatusCard: View {
                                         )
                                     }
                                 }
+                                
+                                if let inspection =
+                                    latestInspection(
+                                        for: assignment
+                                    ) {
+
+                                    Label(
+                                        "Supervisor: \(inspection.progress.rawValue)",
+                                        systemImage:
+                                            inspection.progress == .done
+                                            ? "checkmark.seal.fill"
+                                            : "gauge.with.dots.needle.50percent"
+                                    )
+                                    .font(
+                                        .caption
+                                    )
+                                    .foregroundStyle(
+                                        inspection.progress == .done
+                                        ? .green
+                                        : .orange
+                                    )
+                                }
                             }
                             .buttonStyle(.plain)
 
@@ -1150,7 +1181,14 @@ private struct DriverStatusCard: View {
                                         assignment
                                     )
                                 }
-                                .buttonStyle(.bordered)
+                                .buttonStyle(
+                                    .bordered
+                                )
+                                .disabled(
+                                    latestInspection(
+                                        for: assignment
+                                    )?.progress != .done
+                                )
                             }
                         }
                     }
@@ -1283,6 +1321,23 @@ private struct DriverStatusCard: View {
                 cornerRadius: 10
             )
         )
+    }
+    
+    private func latestInspection(
+        for assignment:
+            DriverMapAssignment
+    ) -> MapReviewInspection? {
+
+        inspections
+            .filter {
+                $0.assignmentID ==
+                    assignment.id
+            }
+            .sorted {
+                $0.checkedAt >
+                    $1.checkedAt
+            }
+            .first
     }
 }
 

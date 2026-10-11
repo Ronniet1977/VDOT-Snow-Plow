@@ -123,6 +123,32 @@ final class AppDelegate:
                 object:
                     nil
             )
+            
+        case "MAP_REVIEW_REQUEST":
+
+            print(
+                "📩 Map review request push received"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapReviewRequestNotificationReceived,
+                object:
+                    nil
+            )
+            
+        case "MAP_REVIEW_INSPECTION":
+
+            print(
+                "📩 Map review inspection push received"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapReviewInspectionNotificationReceived,
+                object:
+                    nil
+            )
 
         default:
 
@@ -202,6 +228,32 @@ final class AppDelegate:
             NotificationCenter.default.post(
                 name:
                     .userRoleChangedNotificationReceived,
+                object:
+                    nil
+            )
+            
+        case "MAP_REVIEW_REQUEST":
+
+            print(
+                "📩 Map review request push received"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapReviewRequestNotificationReceived,
+                object:
+                    nil
+            )
+            
+        case "MAP_REVIEW_INSPECTION":
+
+            print(
+                "📩 Tapped map review inspection notification"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapReviewInspectionNotificationReceived,
                 object:
                     nil
             )
@@ -317,6 +369,32 @@ final class AppDelegate:
                 object:
                     nil
             )
+            
+        case "MAP_REVIEW_REQUEST":
+
+            print(
+                "📩 Map review request push received"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapReviewRequestNotificationReceived,
+                object:
+                    nil
+            )
+            
+        case "MAP_REVIEW_INSPECTION":
+
+            print(
+                "📩 Background map review inspection push"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .mapReviewInspectionNotificationReceived,
+                object:
+                    nil
+            )
 
         default:
 
@@ -352,5 +430,15 @@ extension Notification.Name {
     static let userRoleChangedNotificationReceived =
         Notification.Name(
             "userRoleChangedNotificationReceived"
+        )
+    
+    static let mapReviewRequestNotificationReceived =
+        Notification.Name(
+            "mapReviewRequestNotificationReceived"
+        )
+    
+    static let mapReviewInspectionNotificationReceived =
+        Notification.Name(
+            "mapReviewInspectionNotificationReceived"
         )
 }
