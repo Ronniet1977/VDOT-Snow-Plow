@@ -267,10 +267,55 @@ private struct AppUserEditView:
 
                 Section("User") {
 
-                    TextField(
+                    LabeledContent(
                         "Name",
+                        value:
+                            user.name
+                    )
+
+                    TextField(
+                        "Company Name",
                         text:
-                            $user.name
+                            Binding(
+                                get: {
+                                    user.companyName ?? ""
+                                },
+                                set: {
+                                    user.companyName = $0
+                                }
+                            )
+                    )
+
+                    TextField(
+                        "Phone Number",
+                        text:
+                            Binding(
+                                get: {
+                                    user.phoneNumber ?? ""
+                                },
+                                set: {
+                                    user.phoneNumber = $0
+                                }
+                            )
+                    )
+                    .keyboardType(
+                        .phonePad
+                    )
+
+                    TextField(
+                        "Truck VIN Last 4",
+                        text:
+                            Binding(
+                                get: {
+                                    user.truckVINLast4 ?? ""
+                                },
+                                set: {
+                                    user.truckVINLast4 = $0
+                                }
+                            )
+                    )
+                    .textInputAutocapitalization(
+                        .characters
                     )
 
                     Picker(
@@ -359,44 +404,6 @@ private struct AppUserEditView:
                         }
                     }
                 }
-
-                if user.role ==
-                    .supervisor {
-
-                    Section(
-                        "Supervisor Category"
-                    ) {
-
-                        Picker(
-                            "Category",
-                            selection:
-                                Binding(
-                                    get: {
-                                        user.category
-                                            ?? .plowOnly
-                                    },
-                                    set: {
-                                        user.category =
-                                            $0
-                                    }
-                                )
-                        ) {
-
-                            ForEach(
-                                CrewCategory.allCases
-                            ) { category in
-
-                                Text(
-                                    category
-                                        .displayName
-                                )
-                                .tag(
-                                    category
-                                )
-                            }
-                        }
-                    }
-                }
             }
             .navigationTitle(
                 "User"
@@ -425,8 +432,8 @@ private struct AppUserEditView:
                         "Save"
                     ) {
 
-                        if user.role
-                            != .supervisor {
+                        if user.role != .supervisor &&
+                            !user.isAlsoSupervisor {
 
                             user.category =
                                 nil
