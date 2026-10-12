@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @EnvironmentObject var vm: TimeViewModel
@@ -158,6 +159,16 @@ struct ContentView: View {
             .foregroundStyle(
                 .secondary
             )
+            
+            Button("Update App") {
+
+                if let url = URL(
+                    string: "itms-beta://beta.itunes.apple.com/"
+                ) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            .buttonStyle(.borderedProminent)
 
             Text(
                 AppVersionInfo.display
