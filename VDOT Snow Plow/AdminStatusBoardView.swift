@@ -509,15 +509,20 @@ struct AdminStatusBoardView: View {
                         
                         mapAcknowledgements:
                             Dictionary(
-                                uniqueKeysWithValues:
-                                    acknowledgementStore
-                                        .acknowledgements
-                                        .map {
-                                            (
-                                                $0.assignmentID,
-                                                $0
-                                            )
-                                        }
+                                acknowledgementStore
+                                    .acknowledgements
+                                    .map {
+                                        (
+                                            $0.assignmentID,
+                                            $0
+                                        )
+                                    },
+                                uniquingKeysWith: {
+                                    _,
+                                    newer in
+
+                                    newer
+                                }
                             ),
                         
                         onFinishMap: { assignment in
