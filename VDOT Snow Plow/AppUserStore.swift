@@ -258,6 +258,66 @@ final class AppUserStore:
             }
         }
     }
+    
+    func createDefaultAdminIfNeeded(
+        appleUserID: String?
+    ) async {
+
+        do {
+
+            let cloudUsers =
+                try await cloud
+                    .fetchUsers()
+
+            guard cloudUsers.isEmpty
+            else {
+
+                users =
+                    cloudUsers.sorted {
+                        $0.name
+                            .localizedCaseInsensitiveCompare(
+                                $1.name
+                            )
+                        ==
+                        .orderedAscending
+                    }
+
+                save()
+
+                return
+            }
+
+            let admin =
+                AppUser(
+                    name: "Ronnie T",
+                    role: .admin,
+                    appleUserID: appleUserID
+                )
+
+            try await cloud
+                .saveUser(
+                    admin
+                )
+
+            users = [
+                admin
+            ]
+
+            save()
+
+            print(
+                "👑 Fresh CloudKit — default admin created:",
+                admin.name
+            )
+
+        } catch {
+
+            print(
+                "❌ Default admin creation failed:",
+                error
+            )
+        }
+    }
 
     func syncFromCloud() async {
 

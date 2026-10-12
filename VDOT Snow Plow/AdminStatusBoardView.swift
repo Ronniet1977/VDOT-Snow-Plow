@@ -690,6 +690,9 @@ struct AdminStatusBoardView: View {
 
             await acknowledgementStore
                 .syncFromCloud()
+            
+            await stormStore
+                .syncFromCloud()
         }
         .alert(
             "End Storm?",

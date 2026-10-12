@@ -13,14 +13,21 @@ struct SettingsView: View {
     // Draft fields (do NOT save while typing)
     @State private var ownerName = ""
     @State private var truckNumber = ""
-    @State private var driverName = ""
     @State private var eventNumber = ""
     @State private var siteLabel = ""
     
     private var isDraftComplete: Bool {
-        !ownerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !truckNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !driverName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !ownerName
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+            .isEmpty &&
+
+        !truckNumber
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+            .isEmpty
     }
     
     var body: some View {
@@ -28,7 +35,6 @@ struct SettingsView: View {
             Section("Required") {
                 TextField("Owner Name", text: $ownerName)
                 TextField("Truck #", text: $truckNumber)
-                TextField("Driver Name", text: $driverName)
             }
             
             Section("Administration") {
@@ -61,7 +67,6 @@ struct SettingsView: View {
             // Load drafts from saved VM values
             ownerName = vm.ownerName
             truckNumber = vm.truckNumber
-            driverName = vm.driverName
             eventNumber = vm.eventNumber
             siteLabel = vm.siteLabel
         }
@@ -81,7 +86,6 @@ struct SettingsView: View {
     private func applyDraftToViewModelAndSave() {
         vm.ownerName = ownerName
         vm.truckNumber = truckNumber
-        vm.driverName = driverName
         vm.eventNumber = eventNumber
         vm.siteLabel = siteLabel
         vm.save()

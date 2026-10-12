@@ -59,6 +59,12 @@ final class CloudAppUserService {
 
         record["category"] =
             user.category?.rawValue
+        
+        record["isAlsoDriver"] =
+            NSNumber(
+                value:
+                    user.isAlsoDriver
+            )
 
         record["isActive"] =
             NSNumber(
@@ -83,6 +89,17 @@ final class CloudAppUserService {
         
         record["phoneNumber"] =
             user.phoneNumber
+        
+        print(
+            "☁️ SAVING APP USER:",
+            user.name,
+            "| role:",
+            user.role.rawValue,
+            "| driverID:",
+            user.driverID?.uuidString ?? "nil",
+            "| record:",
+            user.id.uuidString
+        )
 
         try await database.save(
             record
@@ -172,6 +189,17 @@ final class CloudAppUserService {
                             uuidString: $0
                         )
                     }
+            
+            print(
+                "☁️ FETCHED APP USER:",
+                name,
+                "| role:",
+                role.rawValue,
+                "| raw driverID:",
+                record["driverID"] as? String ?? "nil",
+                "| parsed driverID:",
+                driverID?.uuidString ?? "nil"
+            )
 
             let appleUserID =
                 record["appleUserID"]
@@ -188,6 +216,17 @@ final class CloudAppUserService {
             let phoneNumber =
                 record["phoneNumber"]
                     as? String
+            
+            let isAlsoDriver =
+                (
+                    record["isAlsoDriver"]
+                        as? NSNumber
+                )?.boolValue
+                ??
+                (
+                    role == .admin &&
+                    driverID != nil
+                )
 
             let isActive =
                 (
@@ -208,7 +247,10 @@ final class CloudAppUserService {
                     truckVINLast4: truckVINLast4,
                     phoneNumber:
                         phoneNumber,
-                    isActive: isActive
+                    isAlsoDriver:
+                        isAlsoDriver,
+                    isActive:
+                        isActive
                 )
             )
         }

@@ -238,8 +238,6 @@ private struct AppUserEditView:
 
     @State private var user:
         AppUser
-    @State private var adminAlsoDriver =
-        false
 
     let onSave:
         (AppUser) -> Void
@@ -255,13 +253,6 @@ private struct AppUserEditView:
             State(
                 initialValue:
                     user
-            )
-
-        _adminAlsoDriver =
-            State(
-                initialValue:
-                    user.role == .admin &&
-                    user.driverID != nil
             )
 
         self.onSave =
@@ -315,7 +306,7 @@ private struct AppUserEditView:
                         Toggle(
                             "Also a Driver",
                             isOn:
-                                $adminAlsoDriver
+                                $user.isAlsoDriver
                         )
                     }
                 }
@@ -393,7 +384,7 @@ private struct AppUserEditView:
                         }
                         
                         if user.role == .admin &&
-                            adminAlsoDriver == false {
+                            user.isAlsoDriver == false {
 
                             user.driverID =
                                 nil

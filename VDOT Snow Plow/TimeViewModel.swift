@@ -336,7 +336,9 @@ final class TimeViewModel: ObservableObject {
     
     // MARK: - Export
     
-    func exportLastStormDetailedCSV() throws -> URL {
+    func exportLastStormDetailedCSV(
+        driverName: String
+    ) throws -> URL {
         guard let s = lastStormSummary else {
             throw NSError(domain: "Export", code: 1, userInfo: [NSLocalizedDescriptionKey: "No storm summary found."])
         }

@@ -33,7 +33,11 @@ final class UserRoleSyncManager {
         if oldRole == .driver &&
             user.role != .driver {
 
-            if let driver =
+            updatedUser.driverID =
+                oldUser?.driverID
+
+            if user.role != .supervisor,
+               let driver =
                 driverStore.drivers.first(
                     where: {
                         $0.id ==
@@ -46,9 +50,6 @@ final class UserRoleSyncManager {
                     active: false
                 )
             }
-
-            updatedUser.driverID =
-                oldUser?.driverID
         }
 
         if oldRole == .supervisor &&
@@ -144,9 +145,19 @@ final class UserRoleSyncManager {
             )
             
             updatedUser.driverID =
-            nil
+                oldUser?.driverID
+                ?? user.driverID
             
         case .admin:
+
+            guard user.isAlsoDriver
+            else {
+
+                updatedUser.driverID =
+                    nil
+
+                break
+            }
             
             if let driverID =
                 user.driverID,
@@ -185,30 +196,40 @@ final class UserRoleSyncManager {
                     active: true
                 )
                 
-            } else if user.driverID != nil {
-                
+            } else {
+
                 driverStore.add(
                     name:
                         user.name,
                     truckNumber:
                         "",
                     category:
-                            .plowOnly
+                        .plowOnly
                 )
-                
+
                 updatedUser.driverID =
-                driverStore.drivers.first(
-                    where: {
-                        $0.name
-                            .localizedCaseInsensitiveCompare(
-                                user.name
-                            )
-                        ==
-                            .orderedSame
-                    }
-                )?.id
+                    driverStore.drivers.first(
+                        where: {
+                            $0.name
+                                .localizedCaseInsensitiveCompare(
+                                    user.name
+                                )
+                            ==
+                                .orderedSame
+                        }
+                    )?.id
             }
         }
+        
+        print("🧪 ROLE SYNC RESULT")
+        print(
+            "name:", updatedUser.name,
+            "| old role:", oldUser?.role.rawValue ?? "nil",
+            "| new role:", updatedUser.role.rawValue,
+            "| old driverID:", oldUser?.driverID?.uuidString ?? "nil",
+            "| incoming driverID:", user.driverID?.uuidString ?? "nil",
+            "| outgoing driverID:", updatedUser.driverID?.uuidString ?? "nil"
+        )
 
         return updatedUser
     }

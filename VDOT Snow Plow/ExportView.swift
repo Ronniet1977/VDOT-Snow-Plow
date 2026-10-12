@@ -7,7 +7,10 @@
 import SwiftUI
 
 struct ExportView: View {
+
     @EnvironmentObject var vm: TimeViewModel
+
+    let currentUser: AppUser?
 
     @State private var startDate: Date = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
     @State private var endDate: Date = Date()
@@ -34,15 +37,24 @@ struct ExportView: View {
                         let interval = DateInterval(start: s, end: e)
                         
                         do {
-                            let url = try CSVExporter.buildDetailedCSV(
-                                blocks: vm.blocks,
-                                ownerName: vm.ownerName,
-                                truckNumber: vm.truckNumber,
-                                driverName: vm.driverName,
-                                eventNumber: vm.eventNumber,
-                                siteLabel: vm.siteLabel,
-                                dateRange: interval
-                            )
+                            let url =
+                                try CSVExporter.buildDetailedCSV(
+                                    blocks:
+                                        vm.blocks,
+                                    ownerName:
+                                        vm.ownerName,
+                                    truckNumber:
+                                        vm.truckNumber,
+                                    driverName:
+                                        currentUser?.name
+                                        ?? "",
+                                    eventNumber:
+                                        vm.eventNumber,
+                                    siteLabel:
+                                        vm.siteLabel,
+                                    dateRange:
+                                        interval
+                                )
                             shareURL = url
                             showingShare = true
                             exportError = nil
@@ -76,7 +88,12 @@ struct ExportView: View {
             .sheet(isPresented: $vm.showStormSummary) {
                 StormSummaryView(summary: vm.lastStormSummary) {
                     do {
-                        let url = try vm.exportLastStormDetailedCSV()
+                        let url =
+                            try vm.exportLastStormDetailedCSV(
+                                driverName:
+                                    currentUser?.name
+                                    ?? ""
+                            )
                         shareURL = url
                         showingShare = true
                     } catch {

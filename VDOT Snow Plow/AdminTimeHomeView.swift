@@ -83,6 +83,35 @@ struct AdminTimeHomeView: View {
             
             await inspectionStore
                 .syncFromCloud()
+            
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            print("🧪 IDENTITY TEST")
+
+            print("👤 APP USERS:")
+            for user in userStore.users {
+
+                print(
+                    "USER:",
+                    user.name,
+                    "| role:", user.role.rawValue,
+                    "| userID:", user.id.uuidString,
+                    "| driverID:", user.driverID?.uuidString ?? "nil",
+                    "| apple:", user.appleUserID ?? "nil"
+                )
+            }
+
+            print("🚜 CREW DRIVERS:")
+            for driver in driverStore.drivers {
+
+                print(
+                    "DRIVER:",
+                    driver.name,
+                    "| driverID:", driver.id.uuidString,
+                    "| active:", driver.isActive
+                )
+            }
+
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         }
         .task(
             id:
@@ -116,6 +145,15 @@ struct AdminTimeHomeView: View {
 
                 await NotificationManager.shared
                     .subscribeForMapReviewInspections()
+
+                if let adminDriver {
+
+                    await NotificationManager.shared
+                        .subscribeForMapAssignments(
+                            driverID:
+                                adminDriver.id
+                        )
+                }
             }
 
             if appleUser.role == .supervisor {
@@ -258,38 +296,48 @@ struct AdminTimeHomeView: View {
                     "🔄 Refreshing admin map inspections"
                 )
 
-                let previousCount =
-                    inspectionStore
-                        .inspections
-                        .count
-
                 for attempt in 1...4 {
 
                     await inspectionStore
                         .syncFromCloud()
 
-                    if inspectionStore
-                        .inspections
-                        .count > previousCount {
-
-                        print(
-                            "✅ New map inspection found on attempt",
-                            attempt
-                        )
-
-                        break
-                    }
-
                     print(
-                        "⏳ Map inspection not visible yet, attempt",
-                        attempt
+                        "🔎 Inspection refresh attempt:",
+                        attempt,
+                        "count:",
+                        inspectionStore
+                            .inspections
+                            .count
                     )
 
-                    try? await Task.sleep(
-                        for: .seconds(2)
-                    )
+                    if attempt < 4 {
+
+                        try? await Task.sleep(
+                            for:
+                                .seconds(2)
+                        )
+                    }
                 }
+
+                print(
+                    "✅ Admin map inspections refreshed"
+                )
             }
+        }
+    }
+    
+    private var adminDriver: CrewDriver? {
+
+        guard let appleUser,
+              appleUser.role == .admin
+        else {
+            return nil
+        }
+
+        return driverStore.drivers.first {
+            $0.name.localizedCaseInsensitiveCompare(
+                appleUser.name
+            ) == .orderedSame
         }
     }
         
@@ -334,12 +382,15 @@ struct AdminTimeHomeView: View {
                     
                     if let appleUser,
                        appleUser.role == .admin,
-                       appleUser.driverID != nil {
+                       let adminDriver {
 
                         NavigationLink {
 
-                            DriverHomeView(
-                                user: appleUser,
+                            var driverUser = appleUser
+                            driverUser.driverID = adminDriver.id
+
+                            return DriverHomeView(
+                                user: driverUser,
                                 driverStore: driverStore,
                                 appleAccountStore: appleAccountStore
                             )
@@ -348,8 +399,7 @@ struct AdminTimeHomeView: View {
 
                             Label(
                                 "Driver View",
-                                systemImage:
-                                    "steeringwheel"
+                                systemImage: "steeringwheel"
                             )
                         }
                     }

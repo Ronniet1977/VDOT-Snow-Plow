@@ -138,14 +138,53 @@ struct AppleSignInView: View {
                 await userStore
                     .syncFromCloud()
 
+                // Already linked to a user
                 if appleAccountStore
                     .matchingUser(
                         from: userStore.users
-                    ) == nil {
+                    ) != nil {
 
-                    appleUserID =
-                        credential.user
+                    return
                 }
+
+                // Fresh install:
+                // first Apple account claims the default Admin.
+                if userStore.users.count == 1,
+                   var defaultAdmin =
+                    userStore.users.first,
+                   defaultAdmin.role == .admin,
+                   defaultAdmin.appleUserID == nil {
+
+                    defaultAdmin.appleUserID =
+                        credential.user
+
+                    do {
+
+                        try await userStore
+                            .saveAndWait(
+                                defaultAdmin
+                            )
+
+                        print(
+                            "👑 Default admin linked to Apple account:",
+                            defaultAdmin.name
+                        )
+
+                        return
+
+                    } catch {
+
+                        print(
+                            "❌ Default admin Apple link failed:",
+                            error
+                        )
+                    }
+                }
+
+                // Normal new user:
+                // send them to Request Access.
+                appleUserID =
+                    credential.user
             }
 
             print(

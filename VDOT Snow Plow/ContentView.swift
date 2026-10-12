@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var showSetup = false
     @EnvironmentObject var vm: TimeViewModel
     
     @StateObject private var userStore =
@@ -69,7 +68,9 @@ struct ContentView: View {
                     }
             }
             
-            ExportView()
+            ExportView(
+                currentUser: currentUser
+            )
                 .tabItem { Label("Export", systemImage: "square.and.arrow.up") }
             
             NavigationStack {
@@ -77,25 +78,24 @@ struct ContentView: View {
             }
             .tabItem { Label("Settings", systemImage: "gear") }
         }
-        .task {
+        .task(
+            id:
+                appleAccountStore
+                    .appleUserID
+        ) {
 
             await userStore
                 .syncFromCloud()
 
+            await userStore
+                .createDefaultAdminIfNeeded(
+                    appleUserID:
+                        appleAccountStore
+                            .appleUserID
+                )
+
             await mapAssignmentStore
                 .syncFromCloud()
-        }
-        .onAppear {
-            showSetup = !vm.isSetupComplete
-        }
-        .fullScreenCover(isPresented: $showSetup) {
-            NavigationStack {
-                SettingsView(isSetupMode: true) {
-                    // Continue pressed inside SettingsView
-                    showSetup = false
-                }
-            }
-            .interactiveDismissDisabled(true)
         }
     }
 }
