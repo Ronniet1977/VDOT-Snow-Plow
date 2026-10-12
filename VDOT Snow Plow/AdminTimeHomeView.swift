@@ -83,35 +83,6 @@ struct AdminTimeHomeView: View {
             
             await inspectionStore
                 .syncFromCloud()
-            
-            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-            print("🧪 IDENTITY TEST")
-
-            print("👤 APP USERS:")
-            for user in userStore.users {
-
-                print(
-                    "USER:",
-                    user.name,
-                    "| role:", user.role.rawValue,
-                    "| userID:", user.id.uuidString,
-                    "| driverID:", user.driverID?.uuidString ?? "nil",
-                    "| apple:", user.appleUserID ?? "nil"
-                )
-            }
-
-            print("🚜 CREW DRIVERS:")
-            for driver in driverStore.drivers {
-
-                print(
-                    "DRIVER:",
-                    driver.name,
-                    "| driverID:", driver.id.uuidString,
-                    "| active:", driver.isActive
-                )
-            }
-
-            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         }
         .task(
             id:
@@ -156,7 +127,11 @@ struct AdminTimeHomeView: View {
                 }
             }
 
-            if appleUser.role == .supervisor {
+            if appleUser.role == .supervisor ||
+                (
+                    appleUser.role == .admin &&
+                    appleUser.isAlsoSupervisor
+                ) {
 
                 await NotificationManager.shared
                     .subscribeForMapReviewRequests()
@@ -381,13 +356,23 @@ struct AdminTimeHomeView: View {
                     }
                     
                     if let appleUser,
-                       appleUser.role == .admin,
-                       let adminDriver {
+                       (
+                            appleUser.role == .admin ||
+                            appleUser.role == .supervisor
+                       ),
+                       appleUser.isAlsoDriver,
+                       let driverID = appleUser.driverID,
+                       let linkedDriver =
+                            driverStore.drivers.first(
+                                where: {
+                                    $0.id == driverID
+                                }
+                            ) {
 
                         NavigationLink {
 
                             var driverUser = appleUser
-                            driverUser.driverID = adminDriver.id
+                            driverUser.driverID = linkedDriver.id
 
                             return DriverHomeView(
                                 user: driverUser,
@@ -405,19 +390,25 @@ struct AdminTimeHomeView: View {
                     }
                     
                     if let appleUser,
-                       appleUser.role == .supervisor {
-                        
+                       (
+                            appleUser.role == .supervisor ||
+                            (
+                                appleUser.role == .admin &&
+                                appleUser.isAlsoSupervisor
+                            )
+                       ) {
+
                         NavigationLink {
-                            
+
                             SupervisorMapReviewView(
                                 reviewRequestStore:
                                     reviewRequestStore,
                                 supervisorUser:
                                     appleUser
                             )
-                            
+
                         } label: {
-                            
+
                             Label(
                                 "Pending Map Checks",
                                 systemImage:
@@ -461,8 +452,8 @@ struct AdminTimeHomeView: View {
                         NavigationLink {
 
                             SupervisorSettingsView(
-                                store:
-                                    supervisorStore
+                                userStore:
+                                    userStore
                             )
 
                         } label: {

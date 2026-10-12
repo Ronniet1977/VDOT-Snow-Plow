@@ -54,5 +54,6 @@ struct AppUser: Identifiable, Codable, Equatable {
     var phoneNumber: String?
     
     var isAlsoDriver: Bool = false
+    var isAlsoSupervisor: Bool = false
     var isActive: Bool = true
 }

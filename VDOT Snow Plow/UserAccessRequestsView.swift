@@ -24,6 +24,8 @@ struct UserAccessRequestsView: View {
         [UUID: AppUserRole] = [:]
     @State private var deniedRequestIDs:
         Set<UUID> = []
+    @State private var alsoDrivers:
+        [UUID: Bool] = [:]
 
     var body: some View {
 
@@ -201,6 +203,30 @@ struct UserAccessRequestsView: View {
             .pickerStyle(
                 .segmented
             )
+            
+            if (
+                selectedRoles[
+                    request.id
+                ] ?? .driver
+            ) == .supervisor {
+
+                Toggle(
+                    "Also a Driver",
+                    isOn:
+                        Binding(
+                            get: {
+                                alsoDrivers[
+                                    request.id
+                                ] ?? false
+                            },
+                            set: {
+                                alsoDrivers[
+                                    request.id
+                                ] = $0
+                            }
+                        )
+                )
+            }
 
             HStack {
 
@@ -267,8 +293,19 @@ struct UserAccessRequestsView: View {
                 selectedRoles[
                     request.id
                 ] ?? .driver
+            
+            let shouldAlsoDrive =
+                selectedRole == .supervisor &&
+                (
+                    alsoDrivers[
+                        request.id
+                    ] ?? false
+                )
 
-            if selectedRole == .driver &&
+            if (
+                selectedRole == .driver ||
+                shouldAlsoDrive
+            ) &&
                 driver == nil {
 
                 driverStore.add(
@@ -308,7 +345,12 @@ struct UserAccessRequestsView: View {
                     driver?.category
 
                 existingUser.driverID =
-                    driver?.id
+                    (
+                        selectedRole == .driver ||
+                        shouldAlsoDrive
+                    )
+                    ? driver?.id
+                    : nil
 
                 existingUser.companyName =
                     request.companyName
@@ -318,6 +360,9 @@ struct UserAccessRequestsView: View {
                 
                 existingUser.phoneNumber =
                     request.phoneNumber
+                
+                existingUser.isAlsoDriver =
+                    shouldAlsoDrive
 
                 existingUser.isActive =
                     true
@@ -336,7 +381,12 @@ struct UserAccessRequestsView: View {
                         category:
                             driver?.category,
                         driverID:
-                            driver?.id,
+                            (
+                                selectedRole == .driver ||
+                                shouldAlsoDrive
+                            )
+                            ? driver?.id
+                            : nil,
                         appleUserID:
                             request.appleUserID,
                         companyName:
@@ -345,6 +395,8 @@ struct UserAccessRequestsView: View {
                             request.truckVINLast4,
                         phoneNumber:
                             request.phoneNumber,
+                        isAlsoDriver:
+                            shouldAlsoDrive,
                         isActive:
                             true
                     )

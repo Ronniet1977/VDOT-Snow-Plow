@@ -149,6 +149,44 @@ final class UserRoleSyncManager {
                 ?? user.driverID
             
         case .admin:
+            
+            if user.isAlsoSupervisor {
+
+                let category =
+                    user.category
+                    ?? .plowOnly
+
+                removeSupervisor(
+                    named:
+                        user.name,
+                    supervisorStore:
+                        supervisorStore
+                )
+
+                let supervisor =
+                    SupervisorContact(
+                        name:
+                            user.name,
+                        phoneNumber:
+                            user.phoneNumber
+                            ?? ""
+                    )
+
+                supervisorStore.addSupervisor(
+                    supervisor,
+                    to:
+                        category
+                )
+
+            } else {
+
+                removeSupervisor(
+                    named:
+                        user.name,
+                    supervisorStore:
+                        supervisorStore
+                )
+            }
 
             guard user.isAlsoDriver
             else {

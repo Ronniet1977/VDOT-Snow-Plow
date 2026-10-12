@@ -65,6 +65,12 @@ final class CloudAppUserService {
                 value:
                     user.isAlsoDriver
             )
+        
+        record["isAlsoSupervisor"] =
+            NSNumber(
+                value:
+                    user.isAlsoSupervisor
+            )
 
         record["isActive"] =
             NSNumber(
@@ -227,6 +233,13 @@ final class CloudAppUserService {
                     role == .admin &&
                     driverID != nil
                 )
+            
+            let isAlsoSupervisor =
+                (
+                    record["isAlsoSupervisor"]
+                        as? NSNumber
+                )?.boolValue
+                ?? false
 
             let isActive =
                 (
@@ -249,6 +262,8 @@ final class CloudAppUserService {
                         phoneNumber,
                     isAlsoDriver:
                         isAlsoDriver,
+                    isAlsoSupervisor:
+                        isAlsoSupervisor,
                     isActive:
                         isActive
                 )

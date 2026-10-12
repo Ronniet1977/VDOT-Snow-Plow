@@ -1,91 +1,101 @@
 import SwiftUI
 
 struct SupervisorSettingsView: View {
-    
-    @ObservedObject var store:
-    SupervisorSettingsStore
-    
-    @State private var selectedCategory:
-    CrewCategory?
-    
+
+    @ObservedObject var userStore:
+        AppUserStore
+
     var body: some View {
-        
+
         List {
-            
+
             ForEach(
                 CrewCategory.allCases
             ) { category in
-                
+
                 Section(
                     category.displayName
                 ) {
-                    
+
                     let supervisors =
-                    store.supervisors(
-                        for:
-                            category
-                    )
-                    
+                        supervisors(
+                            for: category
+                        )
+
                     if supervisors.isEmpty {
-                        
+
                         Text(
-                            "No supervisors added"
+                            "No supervisors"
                         )
                         .foregroundStyle(
                             .secondary
                         )
-                        
+
                     } else {
-                        
+
                         ForEach(
                             supervisors
-                        ) { supervisor in
-                            
+                        ) { user in
+
                             VStack(
                                 alignment:
-                                        .leading,
+                                    .leading,
                                 spacing:
                                     4
                             ) {
-                                
+
                                 Text(
-                                    supervisor.name
+                                    user.name
                                 )
                                 .font(
                                     .headline
                                 )
-                                
-                                Text(
-                                    supervisor
-                                        .phoneNumber
-                                )
-                                .foregroundStyle(
-                                    .secondary
-                                )
+
+                                if user.role == .admin {
+
+                                    Text(
+                                        "Admin • Supervisor"
+                                    )
+                                    .font(
+                                        .caption
+                                    )
+                                    .foregroundStyle(
+                                        .secondary
+                                    )
+
+                                } else {
+
+                                    Text(
+                                        "Supervisor"
+                                    )
+                                    .font(
+                                        .caption
+                                    )
+                                    .foregroundStyle(
+                                        .secondary
+                                    )
+                                }
+
+                                if let phone =
+                                    user.phoneNumber,
+                                   !phone.isEmpty {
+
+                                    Text(
+                                        phone
+                                    )
+                                    .font(
+                                        .caption
+                                    )
+                                    .foregroundStyle(
+                                        .secondary
+                                    )
+                                }
                             }
-                        }
-                        .onDelete { offsets in
-                            
-                            deleteSupervisors(
-                                at: offsets,
-                                category:
-                                    category
+                            .padding(
+                                .vertical,
+                                2
                             )
                         }
-                    }
-                    
-                    Button {
-                        
-                        selectedCategory =
-                        category
-                        
-                    } label: {
-                        
-                        Label(
-                            "Add Supervisor",
-                            systemImage:
-                                "person.badge.plus"
-                        )
                     }
                 }
             }
@@ -93,158 +103,36 @@ struct SupervisorSettingsView: View {
         .navigationTitle(
             "Supervisors"
         )
-        .sheet(
-            item:
-                $selectedCategory
-        ) { category in
-            
-            AddSupervisorView(
-                category:
-                    category,
-                store:
-                    store
-            )
-        }
     }
-    
-    private func deleteSupervisors(
-        at offsets: IndexSet,
-        category: CrewCategory
-    ) {
 
-        let supervisors =
-            store.supervisors(
-                for: category
-            )
+    private func supervisors(
+        for category:
+            CrewCategory
+    ) -> [AppUser] {
 
-        let toDelete =
-            offsets.map {
-                supervisors[$0]
+        userStore.users
+            .filter { user in
+
+                user.isActive &&
+
+                (
+                    user.role == .supervisor ||
+                    (
+                        user.role == .admin &&
+                        user.isAlsoSupervisor
+                    )
+                ) &&
+
+                user.category == category
             }
+            .sorted {
 
-        for supervisor in toDelete {
-
-            store.deleteSupervisor(
-                supervisor,
-                from: category
-            )
-        }
+                $0.name
+                    .localizedCaseInsensitiveCompare(
+                        $1.name
+                    )
+                ==
+                    .orderedAscending
+            }
     }
 }
-
-private struct AddSupervisorView:
-    View {
-    
-    let category:
-    CrewCategory
-    
-    @ObservedObject var store:
-    SupervisorSettingsStore
-    
-    @Environment(\.dismiss)
-    private var dismiss
-    
-    @State private var name = ""
-    @State private var phoneNumber = ""
-    
-    var body: some View {
-        
-        NavigationStack {
-            
-            Form {
-                
-                Section(
-                    category.displayName
-                ) {
-                    
-                    TextField(
-                        "Supervisor Name",
-                        text:
-                            $name
-                    )
-                    
-                    TextField(
-                        "Phone Number",
-                        text:
-                            $phoneNumber
-                    )
-                    .keyboardType(
-                        .phonePad
-                    )
-                }
-            }
-            .navigationTitle(
-                "Add Supervisor"
-            )
-            .toolbar {
-                
-                ToolbarItem(
-                    placement:
-                            .cancellationAction
-                ) {
-                    
-                    Button(
-                        "Cancel"
-                    ) {
-                        
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(
-                    placement:
-                            .confirmationAction
-                ) {
-                    
-                    Button(
-                        "Save"
-                    ) {
-                        
-                        saveSupervisor()
-                    }
-                    .disabled(
-                        name
-                            .trimmingCharacters(
-                                in:
-                                        .whitespacesAndNewlines
-                            )
-                            .isEmpty ||
-                        phoneNumber
-                            .trimmingCharacters(
-                                in:
-                                        .whitespacesAndNewlines
-                            )
-                            .isEmpty
-                    )
-                }
-            }
-        }
-    }
-    
-    private func saveSupervisor() {
-        
-        let contact =
-        SupervisorContact(
-            name:
-                name
-                .trimmingCharacters(
-                    in:
-                            .whitespacesAndNewlines
-                ),
-            phoneNumber:
-                phoneNumber
-                .trimmingCharacters(
-                    in:
-                            .whitespacesAndNewlines
-                )
-        )
-        
-        store.addSupervisor(
-            contact,
-            to: category
-        )
-
-        dismiss()
-    }
-}
-

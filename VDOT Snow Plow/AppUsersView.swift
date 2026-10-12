@@ -299,15 +299,64 @@ private struct AppUserEditView:
                     )
                 }
                 
-                if user.role == .admin {
+                if user.role == .admin ||
+                    user.role == .supervisor {
 
-                    Section("Driver Access") {
+                    Section("Additional Roles") {
 
                         Toggle(
                             "Also a Driver",
                             isOn:
                                 $user.isAlsoDriver
                         )
+
+                        if user.role == .admin {
+
+                            Toggle(
+                                "Also a Supervisor",
+                                isOn:
+                                    $user.isAlsoSupervisor
+                            )
+                        }
+                    }
+                }
+                
+                if user.role == .supervisor ||
+                    (
+                        user.role == .admin &&
+                        user.isAlsoSupervisor
+                    ) {
+
+                    Section("Supervisor Category") {
+
+                        Picker(
+                            "Category",
+                            selection:
+                                Binding(
+                                    get: {
+                                        user.category
+                                            ?? .plowOnly
+                                    },
+                                    set: {
+                                        user.category =
+                                            $0
+                                    }
+                                )
+                        ) {
+
+                            ForEach(
+                                CrewCategory.allCases
+                            ) { category in
+
+                                Text(
+                                    category
+                                        .displayName
+                                )
+                                .tag(
+                                    category
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -383,7 +432,10 @@ private struct AppUserEditView:
                                 nil
                         }
                         
-                        if user.role == .admin &&
+                        if (
+                            user.role == .admin ||
+                            user.role == .supervisor
+                        ) &&
                             user.isAlsoDriver == false {
 
                             user.driverID =

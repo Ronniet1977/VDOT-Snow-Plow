@@ -3,9 +3,6 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var vm: TimeViewModel
     
-    @StateObject private var supervisorStore =
-    SupervisorSettingsStore()
-    
     // When true, we show a Continue button that saves + exits setup
     let isSetupMode: Bool
     let onContinue: (() -> Void)?
@@ -35,25 +32,6 @@ struct SettingsView: View {
             Section("Required") {
                 TextField("Owner Name", text: $ownerName)
                 TextField("Truck #", text: $truckNumber)
-            }
-            
-            Section("Administration") {
-                
-                NavigationLink {
-                    
-                    SupervisorSettingsView(
-                        store:
-                            supervisorStore
-                    )
-                    
-                } label: {
-                    
-                    Label(
-                        "Supervisors",
-                        systemImage:
-                            "person.2.fill"
-                    )
-                }
             }
             
             Section {
