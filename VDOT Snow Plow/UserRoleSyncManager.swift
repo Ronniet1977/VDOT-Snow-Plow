@@ -144,9 +144,77 @@ final class UserRoleSyncManager {
                     category
             )
             
-            updatedUser.driverID =
-                oldUser?.driverID
-                ?? user.driverID
+            if user.isAlsoDriver {
+
+                if let driverID =
+                    user.driverID ??
+                    oldUser?.driverID,
+                   let existing =
+                    driverStore.drivers.first(
+                        where: {
+                            $0.id == driverID
+                        }
+                    ) {
+
+                    updatedUser.driverID =
+                        existing.id
+
+                    driverStore.setActive(
+                        existing,
+                        active: true
+                    )
+
+                } else if let existing =
+                    driverStore.drivers.first(
+                        where: {
+                            $0.name
+                                .localizedCaseInsensitiveCompare(
+                                    user.name
+                                )
+                            ==
+                                .orderedSame
+                        }
+                    ) {
+
+                    updatedUser.driverID =
+                        existing.id
+
+                    driverStore.setActive(
+                        existing,
+                        active: true
+                    )
+
+                } else {
+
+                    driverStore.add(
+                        name:
+                            user.name,
+                        truckNumber:
+                            user.truckVINLast4
+                            ?? "",
+                        category:
+                            user.category
+                            ?? .plowOnly
+                    )
+
+                    updatedUser.driverID =
+                        driverStore.drivers.first(
+                            where: {
+                                $0.name
+                                    .localizedCaseInsensitiveCompare(
+                                        user.name
+                                    )
+                                ==
+                                    .orderedSame
+                            }
+                        )?.id
+                }
+
+            } else {
+
+                updatedUser.driverID =
+                    nil
+            }
             
         case .admin:
             

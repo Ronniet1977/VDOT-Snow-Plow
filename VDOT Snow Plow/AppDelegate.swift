@@ -175,6 +175,19 @@ final class AppDelegate:
                 object:
                     nil
             )
+            
+        case "USER_ROLE_ASSIGNMENT_CHANGED":
+
+            print(
+                "📩 User role assignment push received"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .userRoleAssignmentChangedNotificationReceived,
+                object:
+                    nil
+            )
 
         default:
 
@@ -302,6 +315,19 @@ final class AppDelegate:
             NotificationCenter.default.post(
                 name:
                     .mapAssignmentChangedNotificationReceived,
+                object:
+                    nil
+            )
+            
+        case "USER_ROLE_ASSIGNMENT_CHANGED":
+
+            print(
+                "📩 User role assignment push received"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .userRoleAssignmentChangedNotificationReceived,
                 object:
                     nil
             )
@@ -469,6 +495,19 @@ final class AppDelegate:
                 object:
                     nil
             )
+            
+        case "USER_ROLE_ASSIGNMENT_CHANGED":
+
+            print(
+                "📩 User role assignment push received"
+            )
+
+            NotificationCenter.default.post(
+                name:
+                    .userRoleAssignmentChangedNotificationReceived,
+                object:
+                    nil
+            )
 
         default:
 
@@ -524,5 +563,10 @@ extension Notification.Name {
     static let mapAssignmentChangedNotificationReceived =
         Notification.Name(
             "mapAssignmentChangedNotificationReceived"
+        )
+    
+    static let userRoleAssignmentChangedNotificationReceived =
+        Notification.Name(
+            "userRoleAssignmentChangedNotificationReceived"
         )
 }

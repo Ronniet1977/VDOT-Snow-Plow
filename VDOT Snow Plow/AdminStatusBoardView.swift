@@ -38,6 +38,8 @@ struct AdminStatusBoardView: View {
 
     @ObservedObject var userStore:
         AppUserStore
+    @ObservedObject var roleAssignmentStore:
+        UserRoleAssignmentStore
 
     @ObservedObject var inspectionStore:
         MapReviewInspectionStore
@@ -105,7 +107,10 @@ struct AdminStatusBoardView: View {
                 }
 
                 if let supervisorCategory {
-                    return driver.category == supervisorCategory
+
+                    return effectiveCategory(
+                        for: driver
+                    ) == supervisorCategory
                 }
 
                 return true
@@ -142,30 +147,31 @@ struct AdminStatusBoardView: View {
             
             let matchesGroup: Bool
             
+            let category =
+                effectiveCategory(
+                    for: driver
+                )
+            
             switch crewGroupFilter {
                 
             case .all:
                 matchesGroup = true
-                
+
             case .plowOnly:
                 matchesGroup =
-                driver.category ==
-                    .plowOnly
-                
+                    category == .plowOnly
+
             case .littleTrucks:
                 matchesGroup =
-                driver.category ==
-                    .littleTrucks
-                
+                    category == .littleTrucks
+
             case .bigTrucks:
                 matchesGroup =
-                driver.category ==
-                    .bigTrucks
-                
+                    category == .bigTrucks
+
             case .equipment:
                 matchesGroup =
-                driver.category ==
-                    .equipment
+                    category == .equipment
             }
             
             guard matchesGroup else {
@@ -997,6 +1003,36 @@ struct AdminStatusBoardView: View {
                 driverID: driver.id
             )
         }
+    }
+    
+    private func effectiveCategory(
+        for driver: CrewDriver
+    ) -> CrewCategory {
+
+        if let user =
+            userStore.users.first(
+                where: { user in
+
+                    let effectiveUser =
+                        roleAssignmentStore
+                            .effectiveUser(
+                                from: user
+                            )
+
+                    return effectiveUser.driverID ==
+                        driver.id
+                }
+            ) {
+
+            return roleAssignmentStore
+                .effectiveUser(
+                    from: user
+                )
+                .category
+                ?? driver.category
+        }
+
+        return driver.category
     }
 }
 

@@ -16,6 +16,8 @@ struct AppUsersView: View {
 
     @ObservedObject var supervisorStore:
         SupervisorSettingsStore
+    @ObservedObject var roleAssignmentStore:
+        UserRoleAssignmentStore
 
     @State private var showingAdd =
         false
@@ -45,10 +47,16 @@ struct AppUsersView: View {
                     store.users
                 ) { user in
 
+                    let effectiveUser =
+                        roleAssignmentStore
+                            .effectiveUser(
+                                from: user
+                            )
+
                     Button {
 
                         selectedUser =
-                            user
+                            effectiveUser
 
                     } label: {
 
@@ -62,14 +70,14 @@ struct AppUsersView: View {
                             ) {
 
                                 Text(
-                                    user.name
+                                    effectiveUser.name
                                 )
                                 .font(
                                     .headline
                                 )
 
                                 Text(
-                                    user.role
+                                    effectiveUser.role
                                         .displayName
                                 )
                                 .font(
@@ -81,7 +89,7 @@ struct AppUsersView: View {
 
                                 if
                                     let category =
-                                        user.category {
+                                        effectiveUser.category {
 
                                     Text(
                                         category
@@ -98,7 +106,7 @@ struct AppUsersView: View {
 
                             Spacer()
 
-                            if user.isActive {
+                            if effectiveUser.isActive {
 
                                 Image(
                                     systemName:
@@ -222,9 +230,29 @@ struct AppUsersView: View {
                                 supervisorStore
                         )
 
-                store.update(
-                    syncedUser
-                )
+                Task {
+
+                    do {
+
+                        try await roleAssignmentStore
+                            .saveAssignment(
+                                for:
+                                    syncedUser
+                            )
+
+                        print(
+                            "✅ Effective role saved:",
+                            syncedUser.name
+                        )
+
+                    } catch {
+
+                        print(
+                            "❌ Effective role save failed:",
+                            error
+                        )
+                    }
+                }
             }
         }
     }

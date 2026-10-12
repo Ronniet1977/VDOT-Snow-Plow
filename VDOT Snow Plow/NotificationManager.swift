@@ -770,6 +770,99 @@ final class NotificationManager {
         }
     }
     
+    func subscribeForUserRoleAssignments(
+        appleUserID: String
+    ) async {
+
+        let subscriptionID =
+            "UserRoleAssignment-\(appleUserID)"
+
+        do {
+
+            _ = try await database
+                .subscription(
+                    for: subscriptionID
+                )
+
+            print(
+                "🔔 User role assignment subscription already exists"
+            )
+
+            return
+
+        } catch let error as CKError
+        where error.code == .unknownItem {
+
+            // Create below.
+
+        } catch {
+
+            print(
+                "❌ User role assignment subscription check failed:",
+                error
+            )
+
+            return
+        }
+
+        let predicate =
+            NSPredicate(
+                format:
+                    "appleUserID == %@",
+                appleUserID
+            )
+
+        let subscription =
+            CKQuerySubscription(
+                recordType:
+                    "UserRoleAssignment",
+                predicate:
+                    predicate,
+                subscriptionID:
+                    subscriptionID,
+                options: [
+                    .firesOnRecordCreation,
+                    .firesOnRecordUpdate
+                ]
+            )
+
+        let info =
+            CKSubscription.NotificationInfo()
+
+        info.alertBody =
+            "Your app permissions have been updated."
+
+        info.soundName =
+            "default"
+
+        info.shouldSendContentAvailable =
+            true
+
+        info.category =
+            "USER_ROLE_ASSIGNMENT_CHANGED"
+
+        subscription.notificationInfo =
+            info
+
+        do {
+
+            try await database.save(
+                subscription
+            )
+
+            print(
+                "🔔 User role assignment notifications enabled"
+            )
+
+        } catch {
+
+            print(
+                "❌ User role assignment subscription failed:",
+                error
+            )
+        }
+    }
+    
     func resetAllSubscriptions() async {
 
         do {

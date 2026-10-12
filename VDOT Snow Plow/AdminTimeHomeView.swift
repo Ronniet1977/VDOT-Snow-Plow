@@ -19,11 +19,23 @@ struct AdminTimeHomeView: View {
         MapReviewRequestStore()
     @StateObject private var inspectionStore =
         MapReviewInspectionStore()
+    @StateObject private var roleAssignmentStore =
+        UserRoleAssignmentStore()
     
     private var appleUser: AppUser? {
-        appleAccountStore.matchingUser(
-            from: userStore.users
-        )
+
+        guard let baseUser =
+            appleAccountStore.matchingUser(
+                from: userStore.users
+            )
+        else {
+            return nil
+        }
+
+        return roleAssignmentStore
+            .effectiveUser(
+                from: baseUser
+            )
     }
     
     var body: some View {
@@ -74,6 +86,9 @@ struct AdminTimeHomeView: View {
 
             await userStore
                 .syncFromCloud()
+            
+            await roleAssignmentStore
+                .syncFromCloud()
 
             await requestStore
                 .syncFromCloud()
@@ -101,6 +116,16 @@ struct AdminTimeHomeView: View {
 
                 await NotificationManager.shared
                     .subscribeForUserChanges(
+                        appleUserID:
+                            appleUserID
+                    )
+            }
+            
+            if let appleUserID =
+                appleUser.appleUserID {
+
+                await NotificationManager.shared
+                    .subscribeForUserRoleAssignments(
                         appleUserID:
                             appleUserID
                     )
@@ -299,6 +324,38 @@ struct AdminTimeHomeView: View {
                 )
             }
         }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for:
+                    .userRoleAssignmentChangedNotificationReceived
+            )
+        ) { _ in
+
+            Task {
+
+                print(
+                    "🔄 Refreshing effective role assignment"
+                )
+
+                for attempt in 1...4 {
+
+                    await roleAssignmentStore
+                        .syncFromCloud()
+
+                    print(
+                        "✅ Role assignment refresh attempt:",
+                        attempt
+                    )
+
+                    if attempt < 4 {
+
+                        try? await Task.sleep(
+                            for: .seconds(2)
+                        )
+                    }
+                }
+            }
+        }
     }
     
     private var adminDriver: CrewDriver? {
@@ -341,6 +398,8 @@ struct AdminTimeHomeView: View {
                                     appleUser,
                                 userStore:
                                     userStore,
+                                roleAssignmentStore:
+                                    roleAssignmentStore,
                                 inspectionStore:
                                     inspectionStore
                             )
@@ -473,7 +532,9 @@ struct AdminTimeHomeView: View {
                                 driverStore:
                                     driverStore,
                                 supervisorStore:
-                                    supervisorStore
+                                    supervisorStore,
+                                roleAssignmentStore:
+                                    roleAssignmentStore
                             )
 
                         } label: {
