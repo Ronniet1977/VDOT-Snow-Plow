@@ -300,6 +300,11 @@ private struct AppUserEditView:
                         value:
                             user.name
                     )
+                    Text(
+                        AppVersionInfo.display
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                     TextField(
                         "Company Name",
