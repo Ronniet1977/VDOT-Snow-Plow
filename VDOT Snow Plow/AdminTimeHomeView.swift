@@ -21,6 +21,8 @@ struct AdminTimeHomeView: View {
         MapReviewInspectionStore()
     @StateObject private var roleAssignmentStore =
         UserRoleAssignmentStore()
+    @StateObject private var userAppStatusStore =
+        UserAppStatusStore()
     
     private var appleUser: AppUser? {
 
@@ -106,6 +108,19 @@ struct AdminTimeHomeView: View {
 
             guard let appleUser else {
                 return
+            }
+            
+            await userAppStatusStore
+                .syncFromCloud()
+
+            if let appleUserID =
+                appleUser.appleUserID {
+
+                await userAppStatusStore
+                    .updateCurrentUser(
+                        appleUserID:
+                            appleUserID
+                    )
             }
 
             await NotificationManager.shared
@@ -527,6 +542,8 @@ struct AdminTimeHomeView: View {
                         NavigationLink {
 
                             AppUsersView(
+                                userAppStatusStore:
+                                    userAppStatusStore,
                                 store:
                                     userStore,
                                 driverStore:

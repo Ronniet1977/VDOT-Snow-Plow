@@ -9,7 +9,8 @@ import SwiftUI
 
 struct AppUsersView: View {
     
-
+    @ObservedObject var userAppStatusStore:
+        UserAppStatusStore
     @ObservedObject var store:
         AppUserStore
     @ObservedObject var driverStore:
@@ -67,6 +68,13 @@ struct AppUsersView: View {
                             .effectiveUser(
                                 from: user
                             )
+                    
+                    let appStatus =
+                        userAppStatusStore
+                            .status(
+                                for:
+                                    effectiveUser.appleUserID
+                            )
 
                     Button {
 
@@ -101,6 +109,33 @@ struct AppUsersView: View {
                                 .foregroundStyle(
                                     .secondary
                                 )
+                                
+                                if let appStatus {
+
+                                    HStack(spacing: 8) {
+
+                                        Text(
+                                            "Build \(appStatus.buildNumber)"
+                                        )
+
+                                        Text("•")
+
+                                        Text("Last seen")
+
+                                        Text(
+                                            appStatus.lastSeenAt,
+                                            style: .relative
+                                        )
+                                    }
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+
+                                } else {
+
+                                    Text("Build not reported yet")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
 
                                 if
                                     let category =
