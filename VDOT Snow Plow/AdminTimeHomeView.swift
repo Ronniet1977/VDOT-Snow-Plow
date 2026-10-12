@@ -430,11 +430,11 @@ struct AdminTimeHomeView: View {
 
                         NavigationLink {
 
-                            var driverUser = appleUser
-                            driverUser.driverID = linkedDriver.id
-
-                            return DriverHomeView(
-                                user: driverUser,
+                            DriverHomeView(
+                                user: driverUser(
+                                    from: appleUser,
+                                    driverID: linkedDriver.id
+                                ),
                                 driverStore: driverStore,
                                 appleAccountStore: appleAccountStore
                             )
@@ -534,7 +534,9 @@ struct AdminTimeHomeView: View {
                                 supervisorStore:
                                     supervisorStore,
                                 roleAssignmentStore:
-                                    roleAssignmentStore
+                                    roleAssignmentStore,
+                                currentAppleUserID:
+                                    appleAccountStore.appleUserID
                             )
 
                         } label: {
@@ -655,6 +657,16 @@ struct AdminTimeHomeView: View {
                 "Admin Time"
             )
         }
+    }
+    
+    private func driverUser(
+        from user: AppUser,
+        driverID: UUID
+    ) -> AppUser {
+
+        var copy = user
+        copy.driverID = driverID
+        return copy
     }
 }
 

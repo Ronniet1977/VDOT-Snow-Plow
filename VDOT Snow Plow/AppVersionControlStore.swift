@@ -72,4 +72,35 @@ final class AppVersionControlStore:
         isChecking =
             false
     }
+    
+    func setMinimumBuildToCurrent() async throws {
+
+        let build =
+            currentBuild
+
+        let control =
+            AppVersionControl(
+                minimumVersion:
+                    AppVersionInfo.version,
+                minimumBuild:
+                    build,
+                message:
+                    "Please update VDOT Snow Plow to continue.",
+                updatedAt:
+                    Date()
+            )
+
+        try await cloud
+            .saveControl(
+                control
+            )
+
+        self.control =
+            control
+
+        print(
+            "✅ Minimum build updated to:",
+            build
+        )
+    }
 }

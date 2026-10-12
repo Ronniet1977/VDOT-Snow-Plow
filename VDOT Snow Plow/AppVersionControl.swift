@@ -8,10 +8,15 @@
 import Foundation
 
 struct AppVersionControl:
+    Identifiable,
     Codable,
     Equatable {
+
+    var id = UUID()
 
     var minimumVersion: String
     var minimumBuild: Int
     var message: String
+
+    var updatedAt: Date = Date()
 }

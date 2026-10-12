@@ -23,6 +23,50 @@ final class CloudAppVersionControlService {
 
     private init() {}
 
+    func saveControl(
+        _ control:
+            AppVersionControl
+    ) async throws {
+
+        let recordID =
+            CKRecord.ID(
+                recordName:
+                    control.id.uuidString
+            )
+
+        let record =
+            CKRecord(
+                recordType:
+                    recordType,
+                recordID:
+                    recordID
+            )
+
+        record["minimumVersion"] =
+            control.minimumVersion
+
+        record["minimumBuild"] =
+            NSNumber(
+                value:
+                    control.minimumBuild
+            )
+
+        record["message"] =
+            control.message
+
+        record["updatedAt"] =
+            control.updatedAt
+
+        try await database.save(
+            record
+        )
+
+        print(
+            "☁️ Version control saved:",
+            control.minimumBuild
+        )
+    }
+
     func fetchControl()
     async throws
     -> AppVersionControl? {
@@ -43,13 +87,22 @@ final class CloudAppVersionControlService {
                     query
             )
 
+        var controls:
+            [AppVersionControl] = []
+
         for (_, match)
         in result.matchResults {
 
             guard
                 case .success(
                     let record
-                ) = match
+                ) = match,
+                let id =
+                    UUID(
+                        uuidString:
+                            record.recordID
+                                .recordName
+                    )
             else {
                 continue
             }
@@ -69,18 +122,34 @@ final class CloudAppVersionControlService {
             let message =
                 record["message"]
                     as? String
-                ?? "Please update the app to continue."
+                ?? "Please update VDOT Snow Plow to continue."
 
-            return AppVersionControl(
-                minimumVersion:
-                    minimumVersion,
-                minimumBuild:
-                    minimumBuild,
-                message:
-                    message
+            let updatedAt =
+                record["updatedAt"]
+                    as? Date
+                ?? .distantPast
+
+            controls.append(
+                AppVersionControl(
+                    id:
+                        id,
+                    minimumVersion:
+                        minimumVersion,
+                    minimumBuild:
+                        minimumBuild,
+                    message:
+                        message,
+                    updatedAt:
+                        updatedAt
+                )
             )
         }
 
-        return nil
+        return controls
+            .sorted {
+                $0.updatedAt >
+                    $1.updatedAt
+            }
+            .first
     }
 }

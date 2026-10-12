@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct AppUsersView: View {
+    
 
     @ObservedObject var store:
         AppUserStore
@@ -18,12 +19,26 @@ struct AppUsersView: View {
         SupervisorSettingsStore
     @ObservedObject var roleAssignmentStore:
         UserRoleAssignmentStore
+    let currentAppleUserID: String?
 
     @State private var showingAdd =
         false
 
     @State private var selectedUser:
         AppUser?
+    @StateObject private var versionControlStore =
+        AppVersionControlStore()
+
+    @State private var showingMinimumBuildConfirmation =
+        false
+
+    @State private var versionUpdateMessage:
+        String?
+    
+    private var isDeveloperAccount: Bool {
+        currentAppleUserID ==
+            "002012.bc49ed6cbbb84a1484cb88d2c9cbeb8f.1919"
+    }
 
     var body: some View {
 
@@ -132,6 +147,32 @@ struct AppUsersView: View {
                     }
                 }
             }
+            
+            if isDeveloperAccount {
+
+                Section("Developer") {
+
+                    LabeledContent(
+                        "Installed",
+                        value:
+                            AppVersionInfo.display
+                    )
+
+                    LabeledContent(
+                        "Required Build",
+                        value:
+                            "\(versionControlStore.control?.minimumBuild ?? 0)"
+                    )
+
+                    Button(
+                        "Set Minimum Build to This Build"
+                    ) {
+
+                        showingMinimumBuildConfirmation =
+                            true
+                    }
+                }
+            }
         }
         .navigationTitle(
             "Users"
@@ -156,6 +197,82 @@ struct AppUsersView: View {
                     )
                 }
             }
+        }
+        .task {
+
+            await versionControlStore
+                .checkVersion()
+        }
+        .confirmationDialog(
+            "Require this build or newer?",
+            isPresented:
+                $showingMinimumBuildConfirmation,
+            titleVisibility:
+                .visible
+        ) {
+
+            Button(
+                "Require Build \(AppVersionInfo.build)",
+                role:
+                    .destructive
+            ) {
+
+                Task {
+
+                    do {
+
+                        try await versionControlStore
+                            .setMinimumBuildToCurrent()
+
+                        versionUpdateMessage =
+                            "Minimum build is now \(AppVersionInfo.build)."
+
+                    } catch {
+
+                        versionUpdateMessage =
+                            "Update failed: \(error.localizedDescription)"
+                    }
+                }
+            }
+
+            Button(
+                "Cancel",
+                role:
+                    .cancel
+            ) {}
+        }
+        .alert(
+            "Version Control",
+            isPresented:
+                Binding(
+                    get: {
+                        versionUpdateMessage != nil
+                    },
+                    set: { newValue in
+
+                        if !newValue {
+                            versionUpdateMessage =
+                                nil
+                        }
+                    }
+                )
+        ) {
+
+            Button(
+                "OK",
+                role:
+                    .cancel
+            ) {
+                versionUpdateMessage =
+                    nil
+            }
+
+        } message: {
+
+            Text(
+                versionUpdateMessage
+                ?? ""
+            )
         }
         .alert(
             "Admin Required",
