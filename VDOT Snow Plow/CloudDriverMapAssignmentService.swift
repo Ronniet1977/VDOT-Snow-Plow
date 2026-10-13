@@ -79,107 +79,104 @@ final class CloudDriverMapAssignmentService {
         )
     }
 
-    func fetchAssignments()
-    async throws
+    
+    func fetchAssignments() async throws
     -> [DriverMapAssignment] {
-
-        let query =
-            CKQuery(
-                recordType:
-                    recordType,
-                predicate:
-                    NSPredicate(
-                        value: true
+        
+        let query = CKQuery(
+            recordType: recordType,
+            predicate: NSPredicate(value: true)
+        )
+        
+        var assignments: [DriverMapAssignment] = []
+        
+        // Decode records from each CloudKit page.
+        func appendResults(
+            _ matches: [
+                (CKRecord.ID, Result<CKRecord, Error>)
+            ]
+        ) throws {
+            
+            for (_, matchResult) in matches {
+                
+                switch matchResult {
+                    
+                case .failure(let error):
+                    throw error
+                    
+                case .success(let record):
+                    
+                    guard
+                        let id = UUID(
+                            uuidString: record.recordID.recordName
+                        ),
+                        let driverIDString =
+                            record["driverID"] as? String,
+                        let driverID = UUID(
+                            uuidString: driverIDString
+                        ),
+                        let stormIDString =
+                            record["stormID"] as? String,
+                        let stormID = UUID(
+                            uuidString: stormIDString
+                        ),
+                        let mapNumber =
+                            record["mapNumber"] as? String,
+                        let assignedAt =
+                            record["assignedAt"] as? Date
+                    else {
+                        print(
+                            "⚠️ Skipping invalid map assignment:",
+                            record.recordID.recordName
+                        )
+                        continue
+                    }
+                    
+                    assignments.append(
+                        DriverMapAssignment(
+                            id: id,
+                            driverID: driverID,
+                            stormID: stormID,
+                            mapNumber: mapNumber,
+                            assignedAt: assignedAt,
+                            acknowledgedAt:
+                                record["acknowledgedAt"] as? Date,
+                            completedAt:
+                                record["completedAt"] as? Date,
+                            notes:
+                                record["notes"] as? String ?? ""
+                        )
                     )
-            )
-
-        let result =
-            try await database.records(
-                matching:
-                    query
-            )
-
-        var assignments:
-            [DriverMapAssignment] = []
-
-        for (_, matchResult)
-        in result.matchResults {
-
-            guard
-                case .success(
-                    let record
-                ) = matchResult,
-
-                let id =
-                    UUID(
-                        uuidString:
-                            record.recordID
-                                .recordName
-                    ),
-
-                let driverIDString =
-                    record["driverID"]
-                        as? String,
-
-                let driverID =
-                    UUID(
-                        uuidString:
-                            driverIDString
-                    ),
-
-                let stormIDString =
-                    record["stormID"]
-                        as? String,
-
-                let stormID =
-                    UUID(
-                        uuidString:
-                            stormIDString
-                    ),
-
-                let mapNumber =
-                    record["mapNumber"]
-                        as? String,
-
-                let assignedAt =
-                    record["assignedAt"]
-                        as? Date
-
-            else {
-                continue
+                }
             }
-
-            assignments.append(
-                DriverMapAssignment(
-                    id:
-                        id,
-                    driverID:
-                        driverID,
-                    stormID:
-                        stormID,
-                    mapNumber:
-                        mapNumber,
-                    assignedAt:
-                        assignedAt,
-                    acknowledgedAt:
-                        record["acknowledgedAt"]
-                            as? Date,
-                    completedAt:
-                        record["completedAt"]
-                            as? Date,
-                    notes:
-                        record["notes"]
-                            as? String
-                        ?? ""
-                )
-            )
         }
-
-        return assignments
-            .sorted {
-                $0.assignedAt <
-                    $1.assignedAt
-            }
+        
+        // Fetch the first page.
+        let firstPage = try await database.records(
+            matching: query,
+            resultsLimit: 200
+        )
+        
+        try appendResults(firstPage.matchResults)
+        
+        var cursor = firstPage.queryCursor
+        
+        // Continue until CloudKit has no more pages.
+        while let currentCursor = cursor {
+            
+            let nextPage = try await database.records(
+                continuingMatchFrom: currentCursor,
+                resultsLimit: 200
+            )
+            
+            try appendResults(nextPage.matchResults)
+            
+            cursor = nextPage.queryCursor
+        }
+        
+        return assignments.sorted {
+            $0.assignedAt < $1.assignedAt
+        }
     }
 
     func deleteAssignment(

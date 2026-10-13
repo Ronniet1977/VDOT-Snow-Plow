@@ -51,6 +51,23 @@ final class DriverMapAssignmentStore: ObservableObject {
         stormID: UUID,
         mapNumber: String
     ) {
+        
+        let alreadyAssigned = assignments.contains { assignment in
+            
+            assignment.driverID == driverID &&
+            assignment.stormID == stormID &&
+            assignment.mapNumber == mapNumber &&
+            !assignment.isCompleted
+        }
+        
+        guard !alreadyAssigned else {
+            
+            print(
+                "⚠️ Map \(mapNumber) is already assigned to this driver."
+            )
+            
+            return
+        }
 
         let assignment =
             DriverMapAssignment(
@@ -89,52 +106,37 @@ final class DriverMapAssignmentStore: ObservableObject {
         }
     }
     
+    
     func finish(
         _ assignment: DriverMapAssignment
-    ) {
-
-        guard let index =
-            assignments.firstIndex(
-                where: {
-                    $0.id ==
-                        assignment.id
-                }
+    ) async throws {
+        
+        guard let index = assignments.firstIndex(
+            where: { $0.id == assignment.id }
+        ) else {
+            throw NSError(
+                domain: "MapAssignment",
+                code: 404,
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Map assignment was not found."
+                ]
             )
-        else {
-            return
         }
-
-        assignments[index]
-            .completedAt =
-            Date()
-
-        let updated =
-            assignments[index]
-
+        
+        var updated = assignments[index]
+        updated.completedAt = Date()
+        
+        // CloudKit must confirm before changing local state.
+        try await cloud.saveAssignment(updated)
+        
+        assignments[index] = updated
         save()
-
-        Task {
-
-            do {
-
-                try await cloud
-                    .saveAssignment(
-                        updated
-                    )
-
-                print(
-                    "☁️ Map assignment finished:",
-                    updated.mapNumber
-                )
-
-            } catch {
-
-                print(
-                    "❌ Map assignment finish sync failed:",
-                    error
-                )
-            }
-        }
+        
+        print(
+            "✅ Map assignment finished in CloudKit:",
+            updated.mapNumber
+        )
     }
     
     func acknowledge(
@@ -301,6 +303,58 @@ final class DriverMapAssignmentStore: ObservableObject {
         }
 
         save()
+    }
+    
+    
+    func assignMapSafely(
+        driverID: UUID,
+        stormID: UUID,
+        mapNumber: String
+    ) async throws -> Bool {
+        
+        // Load the latest assignments from CloudKit.
+        let cloudAssignments =
+        try await cloud.fetchAssignments()
+        
+        // Check for an existing active assignment.
+        let alreadyAssigned = cloudAssignments.contains {
+            assignment in
+            
+            assignment.driverID == driverID &&
+            assignment.stormID == stormID &&
+            assignment.mapNumber == mapNumber &&
+            !assignment.isCompleted
+        }
+        
+        guard !alreadyAssigned else {
+            
+            print(
+                "⚠️ Map \(mapNumber) is already assigned to this driver."
+            )
+            
+            return false
+        }
+        
+        // Create the new assignment.
+        let assignment = DriverMapAssignment(
+            driverID: driverID,
+            stormID: stormID,
+            mapNumber: mapNumber
+        )
+        
+        // Wait until CloudKit confirms the save.
+        try await cloud.saveAssignment(assignment)
+        
+        // Update the local screen after success.
+        assignments.append(assignment)
+        save()
+        
+        print(
+            "✅ Map assigned successfully:",
+            mapNumber
+        )
+        
+        return true
     }
 }
 

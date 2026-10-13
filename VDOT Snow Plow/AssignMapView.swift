@@ -16,7 +16,8 @@ struct AssignMapView: View {
     
     @State private var selectedMap =
     "05"
-    
+    @State private var isAssigning = false
+    @State private var assignmentError: String?
     private let mapNumbers =
     (5...44).map {
         String(
@@ -111,6 +112,24 @@ struct AssignMapView: View {
             .navigationTitle(
                 "Assign Map"
             )
+            
+            .alert(
+                "Map Assignment",
+                isPresented: Binding(
+                    get: { assignmentError != nil },
+                    set: {
+                        if !$0 {
+                            assignmentError = nil
+                        }
+                    }
+                )
+            ) {
+                Button("OK") {
+                    assignmentError = nil
+                }
+            } message: {
+                Text(assignmentError ?? "")
+            }
             .toolbar {
                 
                 ToolbarItem(
@@ -128,20 +147,51 @@ struct AssignMapView: View {
                             .confirmationAction
                 ) {
                     
-                    Button("Assign") {
+                    
+                    Button {
                         
-                        assignmentStore
-                            .assignMap(
-                                driverID:
-                                    driver.id,
-                                stormID:
-                                    stormID,
-                                mapNumber:
-                                    selectedMap
-                            )
+                        guard !isAssigning else {
+                            return
+                        }
                         
-                        dismiss()
+                        isAssigning = true
+                        
+                        Task {
+                            
+                            defer {
+                                isAssigning = false
+                            }
+                            
+                            do {
+                                let success = try await assignmentStore
+                                    .assignMapSafely(
+                                        driverID: driver.id,
+                                        stormID: stormID,
+                                        mapNumber: selectedMap
+                                    )
+                                
+                                if success {
+                                    dismiss()
+                                } else {
+                                    assignmentError =
+                                    "Map \(selectedMap) is already assigned to \(driver.name) for this storm."
+                                }
+                                
+                            } catch {
+                                assignmentError =
+                                error.localizedDescription
+                            }
+                        }
+                        
+                    } label: {
+                        
+                        if isAssigning {
+                            ProgressView()
+                        } else {
+                            Text("Assign")
+                        }
                     }
+                    .disabled(isAssigning)
                 }
             }
         }

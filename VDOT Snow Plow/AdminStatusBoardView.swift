@@ -83,7 +83,8 @@ struct AdminStatusBoardView: View {
         false
     @State private var stormShareURL: URL?
     @State private var showingStormShare = false
-    
+    @State private var finishMapError: String?
+    @State private var finishingMapIDs: Set<UUID> = []
     
     
     private let supervisorPhone =
@@ -532,11 +533,36 @@ struct AdminStatusBoardView: View {
                             ),
                         
                         onFinishMap: { assignment in
-
-                            mapAssignmentStore
-                                .finish(
-                                    assignment
-                                )
+                            
+                            guard !finishingMapIDs.contains(assignment.id) else {
+                                return
+                            }
+                            
+                            finishingMapIDs.insert(assignment.id)
+                            
+                            Task {
+                                defer {
+                                    finishingMapIDs.remove(assignment.id)
+                                }
+                                
+                                do {
+                                    try await mapAssignmentStore.finish(assignment)
+                                    
+                                    print(
+                                        "✅ Finished map:",
+                                        assignment.mapNumber
+                                    )
+                                    
+                                } catch {
+                                    finishMapError =
+                                    "Map \(assignment.mapNumber): \(error.localizedDescription)"
+                                    
+                                    print(
+                                        "❌ Finish map failed:",
+                                        error
+                                    )
+                                }
+                            }
                         },
 
                         onMessageSupervisor: { assignment in
@@ -694,6 +720,35 @@ struct AdminStatusBoardView: View {
         .navigationTitle(
             "Status Board"
         )
+        .refreshable {
+            
+            await mapAssignmentStore.syncFromCloud()
+            
+            await acknowledgementStore.syncFromCloud()
+            
+            await inspectionStore.syncFromCloud()
+            
+            await stormStore.syncFromCloud()
+            
+            print("✅ Status Board refreshed")
+        }
+        .alert(
+            "Could Not Finish Map",
+            isPresented: Binding(
+                get: { finishMapError != nil },
+                set: {
+                    if !$0 {
+                        finishMapError = nil
+                    }
+                }
+            )
+        ) {
+            Button("OK") {
+                finishMapError = nil
+            }
+        } message: {
+            Text(finishMapError ?? "")
+        }
         .task {
 
             await mapAssignmentStore
