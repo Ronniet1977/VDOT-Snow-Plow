@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreLocation
+import UIKit
 import MapKit
 
 struct DriverHomeView: View {
@@ -22,6 +23,9 @@ struct DriverHomeView: View {
 
     @StateObject private var mapAssignmentStore =
         DriverMapAssignmentStore()
+    @StateObject private var mapProgressStore =
+    MapProgressStore()
+    @State private var isSavingMapProgress = false
     @StateObject private var acknowledgementStore =
         MapAssignmentAcknowledgementStore()
     @State private var selectedAssignmentID:
@@ -153,12 +157,25 @@ struct DriverHomeView: View {
                 // Initial load only
                 await mapAssignmentStore
                     .syncFromCloud()
+                
+                await mapProgressStore
+                    .syncFromCloud()
 
                 await acknowledgementStore
                     .syncFromCloud()
                 
                 await reviewRequestStore
                     .syncFromCloud()
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: UIApplication.didBecomeActiveNotification
+                )
+            ) { _ in
+                
+                Task {
+                    await mapProgressStore.syncFromCloud()
+                }
             }
             .onReceive(
                 NotificationCenter.default.publisher(
@@ -775,6 +792,130 @@ struct DriverHomeView: View {
                             systemImage:
                                 "map.fill"
                         )
+                    }
+                    
+                    
+                    Divider()
+                    
+                    Text("Road Progress")
+                        .font(.headline)
+                    
+                    let progress = mapProgressStore.currentProgress(
+                        stormID: assignment.stormID,
+                        mapNumber: assignment.mapNumber,
+                        driverID: driver.id
+                    )
+                    
+                    if progress?.roadsOpened == true {
+                        
+                        Label(
+                            "Every road opened ✅",
+                            systemImage: "checkmark.circle.fill"
+                        )
+                        .foregroundStyle(.blue)
+                        
+                    } else {
+                        
+                        Text("Did you open every road?")
+                            .font(.subheadline)
+                        
+                        
+                        Button {
+                            
+                            guard !isSavingMapProgress else {
+                                return
+                            }
+                            
+                            isSavingMapProgress = true
+                            
+                            Task {
+                                
+                                defer {
+                                    isSavingMapProgress = false
+                                }
+                                
+                                do {
+                                    try await mapProgressStore
+                                        .confirmRoadsOpened(
+                                            stormID: assignment.stormID,
+                                            mapNumber: assignment.mapNumber,
+                                            driverID: driver.id,
+                                            resetVersion: 0
+                                        )
+                                } catch {
+                                    print("❌ Roads opened error:", error)
+                                }
+                            }
+                            
+                        } label: {
+                            
+                            if isSavingMapProgress {
+                                ProgressView()
+                            } else {
+                                Label(
+                                    "Yes — Every Road Opened",
+                                    systemImage: "checkmark"
+                                )
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isSavingMapProgress)
+                    }
+                    
+                    if progress?.curbToCurbComplete == true {
+                        
+                        Label(
+                            "Curb to curb complete ✅",
+                            systemImage: "checkmark.circle.fill"
+                        )
+                        .foregroundStyle(.green)
+                        
+                    } else if progress?.roadsOpened == true {
+                        
+                        Text("Is every road curb to curb?")
+                            .font(.subheadline)
+                        
+                        
+                        Button {
+                            
+                            guard !isSavingMapProgress else {
+                                return
+                            }
+                            
+                            isSavingMapProgress = true
+                            
+                            Task {
+                                
+                                defer {
+                                    isSavingMapProgress = false
+                                }
+                                
+                                do {
+                                    try await mapProgressStore
+                                        .confirmCurbToCurb(
+                                            stormID: assignment.stormID,
+                                            mapNumber: assignment.mapNumber,
+                                            driverID: driver.id,
+                                            resetVersion: 0
+                                        )
+                                } catch {
+                                    print("❌ Curb to curb error:", error)
+                                }
+                            }
+                            
+                        } label: {
+                            
+                            if isSavingMapProgress {
+                                ProgressView()
+                            } else {
+                                Label(
+                                    "Yes — Curb to Curb Complete",
+                                    systemImage: "checkmark.circle.fill"
+                                )
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isSavingMapProgress)
                     }
                 }
                 .padding(

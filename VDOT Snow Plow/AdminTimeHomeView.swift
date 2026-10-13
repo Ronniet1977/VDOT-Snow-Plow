@@ -492,6 +492,27 @@ struct AdminTimeHomeView: View {
                     }
                 }
                 
+                
+                if appleUser?.role == .admin {
+                    
+                    Section("Map Progress") {
+                        
+                        NavigationLink {
+                            
+                            AdminMapProgressView(
+                                adminName: appleUser?.name ?? "Unknown Admin"
+                            )
+                            
+                        } label: {
+                            
+                            Label(
+                                "Map Progress",
+                                systemImage: "checkmark.circle.fill"
+                            )
+                        }
+                    }
+                }
+                
                 Section("Crew") {
                     
                     if appleUser?.role == .admin {
