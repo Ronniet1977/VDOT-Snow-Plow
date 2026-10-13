@@ -11,6 +11,16 @@ struct AdminMapProgressView: View {
     MapProgressStore()
     
     @State private var isLoading = true
+    
+    @State private var selectedFilter: MapProgressFilter = .all
+    @State private var searchText = ""
+    
+    private enum MapProgressFilter: String, CaseIterable {
+        case all = "All"
+        case openedUp = "Opened Up"
+        case done = "Done"
+    }
+    
     @State private var mapToClear: MapProgressGroup?
     @State private var clearError: String?
     
@@ -54,10 +64,54 @@ struct AdminMapProgressView: View {
         }
     }
     
+    
+    private var filteredMapGroups: [MapProgressGroup] {
+        
+        mapGroups.filter { map in
+            
+            let stage = progressStore.mapStage(
+                stormID: map.stormID,
+                mapNumber: map.mapNumber,
+                assignedDriverIDs: map.driverIDs,
+                resetVersion: 0
+            )
+            
+            let matchesFilter: Bool
+            
+            switch selectedFilter {
+            case .all:
+                matchesFilter = true
+            case .openedUp:
+                matchesFilter = stage == .openedUp
+            case .done:
+                matchesFilter = stage == .done
+            }
+            
+            let query = searchText.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+            
+            return matchesFilter &&
+            (query.isEmpty ||
+             map.mapNumber.localizedCaseInsensitiveContains(query))
+        }
+    }
+    
     var body: some View {
         
         List {
             
+            Picker("Filter Maps", selection: $selectedFilter) {
+                
+                ForEach(MapProgressFilter.allCases, id: \.self) { filter in
+                    
+                    Text(filter.rawValue)
+                        .tag(filter)
+                }
+            }
+            .pickerStyle(.segmented)
+            .listRowBackground(Color.clear)
+
             Section {
                 
                 HStack {
@@ -70,7 +124,7 @@ struct AdminMapProgressView: View {
                         .fontWeight(.bold)
                 }
                 
-                ForEach(mapGroups) { map in
+                ForEach(filteredMapGroups) { map in
                     
                     let stage = progressStore.mapStage(
                         stormID: map.stormID,
@@ -123,6 +177,10 @@ struct AdminMapProgressView: View {
             }
         }
         .navigationTitle("Map Progress")
+        .searchable(
+            text: $searchText,
+            prompt: "Search Map Number"
+        )
         .confirmationDialog(
             "Clear Map Progress?",
             isPresented: Binding(
