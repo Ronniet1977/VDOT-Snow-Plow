@@ -306,24 +306,37 @@ final class DriverMapAssignmentStore: ObservableObject {
     }
     
     
+    
     func assignMapSafely(
         driverID: UUID,
         stormID: UUID,
         mapNumber: String
     ) async throws -> Bool {
         
-        // Load the latest assignments from CloudKit.
+        // Fetch the latest assignments.
         let cloudAssignments =
         try await cloud.fetchAssignments()
         
-        // Check for an existing active assignment.
+        // Fetch creator-safe completion records.
+        let completions =
+        try await
+        CloudMapAssignmentCompletionService
+            .shared
+            .fetchCompletions()
+        
+        let completedIDs = Set(
+            completions.map(\.assignmentID)
+        )
+        
+        // Check for an existing unfinished assignment.
         let alreadyAssigned = cloudAssignments.contains {
             assignment in
             
             assignment.driverID == driverID &&
             assignment.stormID == stormID &&
             assignment.mapNumber == mapNumber &&
-            !assignment.isCompleted
+            !assignment.isCompleted &&
+            !completedIDs.contains(assignment.id)
         }
         
         guard !alreadyAssigned else {
@@ -335,17 +348,17 @@ final class DriverMapAssignmentStore: ObservableObject {
             return false
         }
         
-        // Create the new assignment.
+        // Create a new assignment.
         let assignment = DriverMapAssignment(
             driverID: driverID,
             stormID: stormID,
             mapNumber: mapNumber
         )
         
-        // Wait until CloudKit confirms the save.
+        // Wait for CloudKit to confirm the save.
         try await cloud.saveAssignment(assignment)
         
-        // Update the local screen after success.
+        // Update the local assignments.
         assignments.append(assignment)
         save()
         

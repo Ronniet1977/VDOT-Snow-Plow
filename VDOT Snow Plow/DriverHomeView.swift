@@ -23,6 +23,8 @@ struct DriverHomeView: View {
 
     @StateObject private var mapAssignmentStore =
         DriverMapAssignmentStore()
+    @StateObject private var completionStore =
+    MapAssignmentCompletionStore()
     @StateObject private var mapProgressStore =
     MapProgressStore()
     @State private var isSavingMapProgress = false
@@ -157,6 +159,8 @@ struct DriverHomeView: View {
                 
                 await mapAssignmentStore.syncFromCloud()
                 
+                await completionStore.syncFromCloud()
+                
                 await acknowledgementStore.syncFromCloud()
                 
                 await reviewRequestStore.syncFromCloud()
@@ -198,6 +202,9 @@ struct DriverHomeView: View {
                 await mapAssignmentStore
                     .syncFromCloud()
                 
+                await completionStore
+                    .syncFromCloud()
+                
                 await mapProgressStore
                     .syncFromCloud()
 
@@ -228,6 +235,9 @@ struct DriverHomeView: View {
             ) { _ in
                 
                 Task {
+                    await mapAssignmentStore.syncFromCloud()
+                    await completionStore.syncFromCloud()
+                    
                     await mapProgressStore.syncFromCloud()
                     
                     await reviewRequestStore.syncFromCloud()
@@ -336,14 +346,18 @@ struct DriverHomeView: View {
     ) -> some View {
 
         let assignments =
-            mapAssignmentStore.assignments
-                .filter {
-                    $0.driverID == driver.id &&
-                    !$0.isCompleted
-                }
-                .sorted {
-                    $0.assignedAt < $1.assignedAt
-                }
+        mapAssignmentStore.assignments
+            .filter { assignment in
+                
+                assignment.driverID == driver.id &&
+                !assignment.isCompleted &&
+                !completionStore.isCompleted(
+                    assignmentID: assignment.id
+                )
+            }
+            .sorted {
+                $0.assignedAt < $1.assignedAt
+            }
 
         return Section("Assigned Maps") {
 
@@ -793,14 +807,18 @@ struct DriverHomeView: View {
     ) -> some View {
 
         let assignments =
-            mapAssignmentStore.assignments
-                .filter {
-                    $0.driverID == driver.id &&
-                    !$0.isCompleted
-                }
-                .sorted {
-                    $0.assignedAt < $1.assignedAt
-                }
+        mapAssignmentStore.assignments
+            .filter { assignment in
+                
+                assignment.driverID == driver.id &&
+                !assignment.isCompleted &&
+                !completionStore.isCompleted(
+                    assignmentID: assignment.id
+                )
+            }
+            .sorted {
+                $0.assignedAt < $1.assignedAt
+            }
         
         let selectedAssignment =
             assignments.first {

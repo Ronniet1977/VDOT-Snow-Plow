@@ -58,6 +58,9 @@ struct AdminStatusBoardView: View {
     @StateObject private var mapAssignmentStore =
     DriverMapAssignmentStore()
     
+    @StateObject private var completionStore =
+    MapAssignmentCompletionStore()
+    
     @State private var assigningDriver:
     CrewDriver?
     
@@ -495,16 +498,20 @@ struct AdminStatusBoardView: View {
                         hasActiveStorm:
                             stormStore.activeStormID != nil,
                         
+                        
                         mapAssignments:
                             stormStore.activeStormID.map { stormID in
                                 
-                                mapAssignmentStore
-                                    .currentAssignments(
-                                        driverID:
-                                            driver.id,
-                                        stormID:
-                                            stormID
+                                mapAssignmentStore.currentAssignments(
+                                    driverID: driver.id,
+                                    stormID: stormID
+                                )
+                                .filter { assignment in
+                                    
+                                    !completionStore.isCompleted(
+                                        assignmentID: assignment.id
                                     )
+                                }
                                 
                             } ?? [],
                         
@@ -532,9 +539,20 @@ struct AdminStatusBoardView: View {
                                 }
                             ),
                         
+                        
                         onFinishMap: { assignment in
                             
                             guard !finishingMapIDs.contains(assignment.id) else {
+                                return
+                            }
+                            
+                            // Extra safety: Supervisor must have marked Done.
+                            guard inspectionStore.inspections.contains(where: {
+                                $0.assignmentID == assignment.id &&
+                                $0.progress == .done
+                            }) else {
+                                finishMapError =
+                                "Supervisor must mark Map \(assignment.mapNumber) Done before finishing."
                                 return
                             }
                             
@@ -546,10 +564,13 @@ struct AdminStatusBoardView: View {
                                 }
                                 
                                 do {
-                                    try await mapAssignmentStore.finish(assignment)
+                                    try await completionStore.finish(
+                                        assignment,
+                                        completedBy: currentUser?.name ?? "Admin"
+                                    )
                                     
                                     print(
-                                        "✅ Finished map:",
+                                        "✅ Map completion recorded:",
                                         assignment.mapNumber
                                     )
                                     
@@ -558,7 +579,7 @@ struct AdminStatusBoardView: View {
                                     "Map \(assignment.mapNumber): \(error.localizedDescription)"
                                     
                                     print(
-                                        "❌ Finish map failed:",
+                                        "❌ Map completion failed:",
                                         error
                                     )
                                 }
@@ -724,6 +745,8 @@ struct AdminStatusBoardView: View {
             
             await mapAssignmentStore.syncFromCloud()
             
+            await completionStore.syncFromCloud()
+            
             await acknowledgementStore.syncFromCloud()
             
             await inspectionStore.syncFromCloud()
@@ -752,6 +775,9 @@ struct AdminStatusBoardView: View {
         .task {
 
             await mapAssignmentStore
+                .syncFromCloud()
+            
+            await completionStore
                 .syncFromCloud()
 
             await acknowledgementStore
