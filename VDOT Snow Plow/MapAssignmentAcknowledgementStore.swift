@@ -58,4 +58,37 @@ final class MapAssignmentAcknowledgementStore:
             for: assignmentID
         ) != nil
     }
+    
+    
+    func acknowledge(
+        _ assignment: DriverMapAssignment
+    ) async throws {
+        
+        // Prevent duplicate acknowledgements already loaded.
+        guard !isAcknowledged(
+            assignmentID: assignment.id
+        ) else {
+            return
+        }
+        
+        let acknowledgement =
+        MapAssignmentAcknowledgement(
+            assignmentID: assignment.id,
+            driverID: assignment.driverID,
+            mapNumber: assignment.mapNumber
+        )
+        
+        // Wait for CloudKit to finish saving.
+        try await cloud.saveAcknowledgement(
+            acknowledgement
+        )
+        
+        // Update the screen immediately after success.
+        acknowledgements.append(acknowledgement)
+        
+        print(
+            "✅ Acknowledgement updated on screen:",
+            assignment.mapNumber
+        )
+    }
 }

@@ -37,8 +37,16 @@ struct DriverHomeView: View {
 
     @State private var isFindingClosestMap =
         false
+    
+    @State private var acknowledgingAssignmentIDs:
+    Set<UUID> = []
+    
+    @State private var acknowledgementError: String?
     @StateObject private var reviewRequestStore =
         MapReviewRequestStore()
+    @StateObject private var inspectionStore =
+    MapReviewInspectionStore()
+    @Environment(\.scenePhase) private var scenePhase
 
     private var driver: CrewDriver? {
 
@@ -135,9 +143,41 @@ struct DriverHomeView: View {
                     }
                 }
             }
-            .navigationTitle(
-                "My Snow Plow"
-            )
+            
+            .navigationTitle("My Snow Plow")
+            .onAppear {
+                Task {
+                    await reviewRequestStore.syncFromCloud()
+                    await inspectionStore.syncFromCloud()
+                    await acknowledgementStore.syncFromCloud()
+                }
+            }
+            
+            .refreshable {
+                
+                await mapAssignmentStore.syncFromCloud()
+                
+                await acknowledgementStore.syncFromCloud()
+                
+                await reviewRequestStore.syncFromCloud()
+                
+                await inspectionStore.syncFromCloud()
+                
+                await mapProgressStore.syncFromCloud()
+            }
+            .alert(
+                "Acknowledgement Failed",
+                isPresented: Binding(
+                    get: { acknowledgementError != nil },
+                    set: { if !$0 { acknowledgementError = nil } }
+                )
+            ) {
+                Button("OK") {
+                    acknowledgementError = nil
+                }
+            } message: {
+                Text(acknowledgementError ?? "")
+            }
             .task {
 
                 locationManager
@@ -166,6 +206,20 @@ struct DriverHomeView: View {
                 
                 await reviewRequestStore
                     .syncFromCloud()
+                
+                await inspectionStore
+                    .syncFromCloud()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                
+                guard newPhase == .active else {
+                    return
+                }
+                
+                Task {
+                    await reviewRequestStore.syncFromCloud()
+                    await inspectionStore.syncFromCloud()
+                }
             }
             .onReceive(
                 NotificationCenter.default.publisher(
@@ -175,6 +229,10 @@ struct DriverHomeView: View {
                 
                 Task {
                     await mapProgressStore.syncFromCloud()
+                    
+                    await reviewRequestStore.syncFromCloud()
+                    
+                    await inspectionStore.syncFromCloud()
                 }
             }
             .onReceive(
@@ -355,48 +413,92 @@ struct DriverHomeView: View {
 
                         } else {
 
-                            Button(
-                                "Acknowledge"
-                            ) {
-
-                                mapAssignmentStore
-                                    .acknowledge(
-                                        assignment
-                                    )
-
+                            
+                            Button {
+                                
+                                guard !acknowledgingAssignmentIDs
+                                    .contains(assignment.id)
+                                else {
+                                    return
+                                }
+                                
+                                acknowledgingAssignmentIDs.insert(
+                                    assignment.id
+                                )
+                                
                                 Task {
-
-                                    try? await Task.sleep(
-                                        for: .seconds(1)
-                                    )
-
-                                    await acknowledgementStore
-                                        .syncFromCloud()
+                                    
+                                    defer {
+                                        acknowledgingAssignmentIDs.remove(
+                                            assignment.id
+                                        )
+                                    }
+                                    
+                                    do {
+                                        try await acknowledgementStore
+                                            .acknowledge(assignment)
+                                        
+                                    } catch {
+                                        acknowledgementError =
+                                        error.localizedDescription
+                                        
+                                        print(
+                                            "❌ Acknowledgement failed:",
+                                            error
+                                        )
+                                    }
+                                }
+                                
+                            } label: {
+                                
+                                if acknowledgingAssignmentIDs.contains(
+                                    assignment.id
+                                ) {
+                                    ProgressView()
+                                } else {
+                                    Text("Acknowledge")
                                 }
                             }
-                            .buttonStyle(
-                                .borderedProminent
+                            .buttonStyle(.borderedProminent)
+                            .disabled(
+                                acknowledgingAssignmentIDs.contains(
+                                    assignment.id
+                                )
                             )
                         }
                         
-                        if reviewRequestStore
-                            .hasRequestedReview(
-                                assignmentID:
-                                    assignment.id
+                        if let request = reviewRequestStore.request(
+                            for: assignment.id
+                        ) {
+                            
+                            if let inspection = inspectionStore.latestInspection(
+                                for: request.id
                             ) {
-
-                            Label(
-                                "Supervisor check requested",
-                                systemImage:
-                                    "person.badge.clock"
-                            )
-                            .font(
-                                .caption
-                            )
-                            .foregroundStyle(
-                                .orange
-                            )
-
+                                
+                                Label(
+                                    "Supervisor Check: \(inspection.progress.rawValue)",
+                                    systemImage:
+                                        inspection.progress == .done
+                                    ? "checkmark.circle.fill"
+                                    : "checkmark.shield"
+                                )
+                                .font(.caption)
+                                .foregroundStyle(
+                                    inspection.progress == .done
+                                    ? .green
+                                    : .orange
+                                )
+                                
+                            } else {
+                                
+                                Label(
+                                    "Supervisor check requested",
+                                    systemImage: "person.badge.clock"
+                                )
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                            }
+                            
                         } else {
 
                             Button {
